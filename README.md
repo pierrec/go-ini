@@ -1,6 +1,6 @@
 [![GoDoc](https://godoc.org/github.com/pierrec/go-ini?status.png)](https://godoc.org/github.com/pierrec/go-ini)
 [![Build Status](https://travis-ci.org/pierrec/go-ini.svg?branch=master)](https://travis-ci.org/pierrec/go-ini)
-[![Coverage Status](https://img.shields.io/coveralls/pierrec/go-ini.svg)](https://coveralls.io/r/pierrec/go-ini?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/pierrec/go-ini/badge.svg?branch=master)](https://coveralls.io/github/pierrec/go-ini?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/pierrec/go-ini)](https://goreportcard.com/report/github.com/pierrec/go-ini)
 
 # ini
