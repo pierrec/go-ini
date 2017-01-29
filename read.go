@@ -19,7 +19,7 @@ var (
 // Leading and trailing whitespaces for the key names are removed.
 // Leading whitespaces for key values are removed.
 // If multiple sections have the same name, by default, the last
-// one is used. This can be overriden with the MergeSections option.
+// one is used. This can be overridden with the MergeSections option.
 func (ini *Ini) ReadFrom(r io.Reader) (int64, error) {
 	var (
 		read int64
