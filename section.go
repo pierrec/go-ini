@@ -55,7 +55,16 @@ func (s *iniSection) rmItem(key string, flag bool) bool {
 		}
 		if (flag && item.Key == key) || (!flag && strings.ToLower(item.Key) == key) {
 			n := len(s.Data) - 1
-			copy(s.Data[i:], s.Data[i+1:])
+			skip := 1
+			// Remove newline if the key was the last one in the block.
+			if (i > 0 && s.Data[i-1] == nil && i < n && s.Data[i+1] == nil) ||
+				(i == 0 && n > 0 && s.Data[1] == nil) {
+				// Removed key is not the first key and previous and next keys are newlines.
+				// Removed key is the first key and next key is a newline.
+				skip++
+				n--
+			}
+			copy(s.Data[i:], s.Data[i+skip:])
 			s.Data[n] = nil
 			s.Data = s.Data[:n]
 			return true

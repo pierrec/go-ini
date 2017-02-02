@@ -178,6 +178,28 @@ func TestDel(t *testing.T) {
 	}
 }
 
+func TestDelWithEmptyBlocks(t *testing.T) {
+	conf, _ := ini.New()
+
+	conf.Set("sec", "k1", "v1")
+	conf.Set("sec", "", "")
+	conf.Set("sec", "k2", "v2")
+	conf.Set("sec", "", "")
+	conf.Set("sec", "k3", "v3")
+	conf.Set("sec", "", "")
+	conf.Set("sec", "k4", "v4")
+
+	conf.Del("sec", "k1")
+	if got, want := conf.Keys("sec"), []string{"k2", "", "k3", "", "k4"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v; want %v", got, want)
+	}
+
+	conf.Del("sec", "k3")
+	if got, want := conf.Keys("sec"), []string{"k2", "", "k4"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v; want %v", got, want)
+	}
+}
+
 func TestOptionCaseSensitive(t *testing.T) {
 	conf, _ := ini.New(ini.CaseSensitive())
 

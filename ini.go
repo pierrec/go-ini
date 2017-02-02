@@ -141,6 +141,9 @@ func (ini *Ini) Set(section, key, value string) {
 	sec := ini.getSection(section)
 	if sec == nil {
 		sec = ini.addSection(section)
+	} else {
+		// The section name may be different.
+		sec.Name = section
 	}
 
 	if key == "" {
@@ -151,9 +154,10 @@ func (ini *Ini) Set(section, key, value string) {
 		return
 	}
 
-	if v := sec.get(key, ini.isCaseSensitive); v != nil {
+	if item := sec.getItem(key, ini.isCaseSensitive); item != nil {
 		// The key does exist.
-		*v = value
+		item.Key = key
+		item.Value = value
 		return
 	}
 	// The key does not exist.
