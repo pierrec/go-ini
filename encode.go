@@ -28,7 +28,7 @@ func Encode(w io.Writer, v interface{}) error {
 
 // Encode sets Ini sections and keys according to the values defined in v.
 // v must be a pointer to a struct.
-func (ini *Ini) Encode(v interface{}) error {
+func (ini *INI) Encode(v interface{}) error {
 	// v must be a pointer.
 	ptr := reflect.ValueOf(v)
 	if ptr.Kind() != reflect.Ptr {

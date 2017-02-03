@@ -1,12 +1,12 @@
 package ini
 
 // Option allows setting various options when creating an Ini type.
-type Option func(*Ini) error
+type Option func(*INI) error
 
 // Comment sets the comment character.
 // It defaults to ';'.
 func Comment(prefix rune) Option {
-	return func(ini *Ini) error {
+	return func(ini *INI) error {
 		ini.comment = prefix
 		return nil
 	}
@@ -15,7 +15,7 @@ func Comment(prefix rune) Option {
 // CaseSensitive makes section and key names case sensitive
 // when using the Get() or Decode() methods.
 func CaseSensitive() Option {
-	return func(ini *Ini) error {
+	return func(ini *INI) error {
 		ini.isCaseSensitive = true
 		return nil
 	}
@@ -25,7 +25,7 @@ func CaseSensitive() Option {
 // instead of overwriting them, in which case the last one wins.
 // This is only relevant when the Ini is being initialized by ReadFrom.
 func MergeSections() Option {
-	return func(ini *Ini) error {
+	return func(ini *INI) error {
 		ini.mergeSections = true
 		return nil
 	}
@@ -34,7 +34,7 @@ func MergeSections() Option {
 // SliceSeparator defines the separator used to split strings when
 // decoding into a slice or encoding a slice into a key value.
 func SliceSeparator(sep string) Option {
-	return func(ini *Ini) error {
+	return func(ini *INI) error {
 		ini.sliceSep = sep
 		return nil
 	}

@@ -6,7 +6,7 @@ import (
 )
 
 // WriteTo writes the contents of Ini to the given Writer.
-func (ini *Ini) WriteTo(w io.Writer) (int64, error) {
+func (ini *INI) WriteTo(w io.Writer) (int64, error) {
 	var written int64
 
 	// Global section.
@@ -38,7 +38,7 @@ func (ini *Ini) WriteTo(w io.Writer) (int64, error) {
 	return written, nil
 }
 
-func (ini *Ini) printComments(w io.Writer, comments []string) (int, error) {
+func (ini *INI) printComments(w io.Writer, comments []string) (int, error) {
 	var written int
 	for _, s := range comments {
 		n, err := fmt.Fprintf(w, "%c%s\n", ini.comment, s)
@@ -50,7 +50,7 @@ func (ini *Ini) printComments(w io.Writer, comments []string) (int, error) {
 	return written, nil
 }
 
-func (ini *Ini) printSection(w io.Writer, section *iniSection, showName bool) (int, error) {
+func (ini *INI) printSection(w io.Writer, section *iniSection, showName bool) (int, error) {
 	var written int
 
 	n, err := ini.printComments(w, section.Comments)

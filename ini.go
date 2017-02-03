@@ -15,11 +15,11 @@ const (
 // DefaultOptions lists the Options for the Encode and Decode functions to use.
 var DefaultOptions []Option
 
-var _ io.ReaderFrom = (*Ini)(nil)
-var _ io.WriterTo = (*Ini)(nil)
+var _ io.ReaderFrom = (*INI)(nil)
+var _ io.WriterTo = (*INI)(nil)
 
 // Ini represents the content of an ini source.
-type Ini struct {
+type INI struct {
 	comment         rune
 	isCaseSensitive bool
 	mergeSections   bool
@@ -33,8 +33,8 @@ type Ini struct {
 }
 
 // New instantiates a new Ini type ready for parsing.
-func New(options ...Option) (*Ini, error) {
-	ini := &Ini{}
+func New(options ...Option) (*INI, error) {
+	ini := &INI{}
 	for _, option := range options {
 		if err := option(ini); err != nil {
 			return nil, err
@@ -53,12 +53,12 @@ func New(options ...Option) (*Ini, error) {
 
 // Reset clears all sections with their associated comments and keys.
 // Initial Options are retained.
-func (ini *Ini) Reset() {
+func (ini *INI) Reset() {
 	ini.global = nil
 	ini.sections = nil
 }
 
-func (ini *Ini) getSection(section string) *iniSection {
+func (ini *INI) getSection(section string) *iniSection {
 	if section == "" {
 		return ini.global
 	}
@@ -75,7 +75,7 @@ func (ini *Ini) getSection(section string) *iniSection {
 	return nil
 }
 
-func (ini *Ini) addSection(section string) *iniSection {
+func (ini *INI) addSection(section string) *iniSection {
 	sec := &iniSection{Name: section}
 	if section == "" {
 		ini.global = sec
@@ -85,7 +85,7 @@ func (ini *Ini) addSection(section string) *iniSection {
 	return sec
 }
 
-func (ini *Ini) rmSection(section string) bool {
+func (ini *INI) rmSection(section string) bool {
 	flag := ini.isCaseSensitive
 	if !flag {
 		section = strings.ToLower(section)
@@ -104,20 +104,20 @@ func (ini *Ini) rmSection(section string) bool {
 
 // Get fetches the key value in the given section.
 // If the section or the key is not found an empty string is returned.
-func (ini *Ini) Get(section, key string) string {
+func (ini *INI) Get(section, key string) string {
 	if v := ini.get(section, key); v != nil {
 		return *v
 	}
 	return ""
 }
 
-func (ini *Ini) get(section, key string) *string {
+func (ini *INI) get(section, key string) *string {
 	return ini.getSection(section).get(key, ini.isCaseSensitive)
 }
 
 // GetComments gets the comments for the given section or key.
 // Use an empty key to get the section comments.
-func (ini *Ini) GetComments(section, key string) []string {
+func (ini *INI) GetComments(section, key string) []string {
 	sec := ini.getSection(section)
 
 	if sec == nil {
@@ -137,7 +137,7 @@ func (ini *Ini) GetComments(section, key string) []string {
 // Set adds the key with its value to the given section.
 // If the section does not exist it is created.
 // Setting an empty key adds a newline for the next keys.
-func (ini *Ini) Set(section, key, value string) {
+func (ini *INI) Set(section, key, value string) {
 	sec := ini.getSection(section)
 	if sec == nil {
 		sec = ini.addSection(section)
@@ -166,7 +166,7 @@ func (ini *Ini) Set(section, key, value string) {
 
 // SetComments sets the comments for the given section or key.
 // Use an empty key to set the section comments.
-func (ini *Ini) SetComments(section, key string, comments ...string) {
+func (ini *INI) SetComments(section, key string, comments ...string) {
 	sec := ini.getSection(section)
 
 	if key == "" {
@@ -183,7 +183,7 @@ func (ini *Ini) SetComments(section, key string, comments ...string) {
 }
 
 // Sections returns the list of defined sections, excluding the global one.
-func (ini *Ini) Sections() []string {
+func (ini *INI) Sections() []string {
 	sections := make([]string, len(ini.sections))
 	for i, s := range ini.sections {
 		sections[i] = s.Name
@@ -192,7 +192,7 @@ func (ini *Ini) Sections() []string {
 }
 
 // Keys returns the list of keys for the given section.
-func (ini *Ini) Keys(section string) []string {
+func (ini *INI) Keys(section string) []string {
 	s := ini.getSection(section)
 	if s == nil {
 		return nil
@@ -211,7 +211,7 @@ func (ini *Ini) Keys(section string) []string {
 
 // Del removes a section or key from Ini returning whether or not it did.
 // Set the key to an empty string to remove a section.
-func (ini *Ini) Del(section, key string) bool {
+func (ini *INI) Del(section, key string) bool {
 	// Remove the section.
 	if key == "" {
 		if section == "" {

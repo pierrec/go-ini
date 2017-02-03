@@ -49,7 +49,7 @@ func Decode(r io.Reader, v interface{}) error {
 //  - bool
 //  - time.Time and time.Duration
 //  - slices of the above types
-func (ini *Ini) Decode(v interface{}) error {
+func (ini *INI) Decode(v interface{}) error {
 	// v must be a pointer.
 	ptr := reflect.ValueOf(v)
 	if ptr.Kind() != reflect.Ptr {
@@ -113,7 +113,7 @@ func (ini *Ini) Decode(v interface{}) error {
 }
 
 // decodeValue sets value to the keyValuePtr value.
-func (ini *Ini) decodeValue(value, valuePtr reflect.Value, isTexter bool, keyValuePtr *string) error {
+func (ini *INI) decodeValue(value, valuePtr reflect.Value, isTexter bool, keyValuePtr *string) error {
 	if isTexter {
 		bts := []byte(*keyValuePtr)
 		txtValue := reflect.ValueOf(bts)

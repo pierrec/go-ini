@@ -31,7 +31,7 @@ func TestNew(t *testing.T) {
 
 	// An option returning an error should be returned by the constructor.
 	_, err = ini.New(
-		func(*ini.Ini) error {
+		func(*ini.INI) error {
 			return errors.New("this is a test error")
 		},
 	)
@@ -648,7 +648,7 @@ B = 2
 
 	// Error option handling.
 	ini.DefaultOptions = []ini.Option{
-		func(*ini.Ini) error { return errors.New("option error") },
+		func(*ini.INI) error { return errors.New("option error") },
 	}
 
 	buf.WriteString(data)

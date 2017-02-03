@@ -20,7 +20,7 @@ var (
 // Leading whitespaces for key values are removed.
 // If multiple sections have the same name, by default, the last
 // one is used. This can be overridden with the MergeSections option.
-func (ini *Ini) ReadFrom(r io.Reader) (int64, error) {
+func (ini *INI) ReadFrom(r io.Reader) (int64, error) {
 	var (
 		read int64
 		s    = bufio.NewReader(r)
@@ -150,7 +150,7 @@ func (ini *Ini) ReadFrom(r io.Reader) (int64, error) {
 	}
 }
 
-func (ini *Ini) addItemsToSection(items []*iniItem, section *iniSection) {
+func (ini *INI) addItemsToSection(items []*iniItem, section *iniSection) {
 	if len(items) == 0 {
 		return
 	}
