@@ -47,8 +47,8 @@ DefaultOptions lists the Options for the Encode and Decode functions to use.
 ```go
 func Decode(r io.Reader, v interface{}) error
 ```
-Decode populates v with the Ini values from the Reader. DefaultOptions are used.
-See Ini.Decode() for more information.
+Decode populates v with the INI values from the Reader. DefaultOptions are used.
+See INI.Decode() for more information.
 
 #### func  Encode
 
@@ -56,32 +56,32 @@ See Ini.Decode() for more information.
 func Encode(w io.Writer, v interface{}) error
 ```
 Encode writes the contents of v to the given Writer. DefaultOptions are used.
-See Ini.Encode() for more information.
+See INI.Encode() for more information.
 
-#### type Ini
+#### type INI
 
 ```go
-type Ini struct {
+type INI struct {
 }
 ```
 
-Ini represents the content of an ini source.
+INI represents the content of an ini source.
 
 #### func  New
 
 ```go
-func New(options ...Option) (*Ini, error)
+func New(options ...Option) (*INI, error)
 ```
-New instantiates a new Ini type ready for parsing.
+New instantiates a new INI type ready for parsing.
 
-#### func (*Ini) Decode
+#### func (*INI) Decode
 
 ```go
-func (ini *Ini) Decode(v interface{}) error
+func (ini *INI) Decode(v interface{}) error
 ```
-Decode decodes the Ini values into v, which must be a pointer to a struct. If
+Decode decodes the INI values into v, which must be a pointer to a struct. If
 the struct field tag has not defined the key name then the name of the field is
-used. The Ini section is defined as the second item in the struct tag. Supported
+used. The INI section is defined as the second item in the struct tag. Supported
 types for the struct fields are:
 
     - types implementing the encoding.TextUnmarshaler interface
@@ -92,100 +92,100 @@ types for the struct fields are:
     - time.Time and time.Duration
     - slices of the above types
 
-#### func (*Ini) Del
+#### func (*INI) Del
 
 ```go
-func (ini *Ini) Del(section, key string) bool
+func (ini *INI) Del(section, key string) bool
 ```
-Del removes a section or key from Ini returning whether or not it did. Set the
+Del removes a section or key from INI returning whether or not it did. Set the
 key to an empty string to remove a section.
 
-#### func (*Ini) Encode
+#### func (*INI) Encode
 
 ```go
-func (ini *Ini) Encode(v interface{}) error
+func (ini *INI) Encode(v interface{}) error
 ```
-Encode sets Ini sections and keys according to the values defined in v. v must
+Encode sets INI sections and keys according to the values defined in v. v must
 be a pointer to a struct.
 
-#### func (*Ini) Get
+#### func (*INI) Get
 
 ```go
-func (ini *Ini) Get(section, key string) string
+func (ini *INI) Get(section, key string) string
 ```
 Get fetches the key value in the given section. If the section or the key is not
 found an empty string is returned.
 
-#### func (*Ini) GetComments
+#### func (*INI) GetComments
 
 ```go
-func (ini *Ini) GetComments(section, key string) []string
+func (ini *INI) GetComments(section, key string) []string
 ```
 GetComments gets the comments for the given section or key. Use an empty key to
 get the section comments.
 
-#### func (*Ini) Keys
+#### func (*INI) Keys
 
 ```go
-func (ini *Ini) Keys(section string) []string
+func (ini *INI) Keys(section string) []string
 ```
 Keys returns the list of keys for the given section.
 
-#### func (*Ini) ReadFrom
+#### func (*INI) ReadFrom
 
 ```go
-func (ini *Ini) ReadFrom(r io.Reader) (int64, error)
+func (ini *INI) ReadFrom(r io.Reader) (int64, error)
 ```
-ReadFrom populates Ini with the data read from the reader. Leading and trailing
+ReadFrom populates INI with the data read from the reader. Leading and trailing
 whitespaces for the key names are removed. Leading whitespaces for key values
 are removed. If multiple sections have the same name, by default, the last one
 is used. This can be overriden with the MergeSections option.
 
-#### func (*Ini) Reset
+#### func (*INI) Reset
 
 ```go
-func (ini *Ini) Reset()
+func (ini *INI) Reset()
 ```
 Reset clears all sections with their associated comments and keys. Initial
 Options are retained.
 
-#### func (*Ini) Sections
+#### func (*INI) Sections
 
 ```go
-func (ini *Ini) Sections() []string
+func (ini *INI) Sections() []string
 ```
 Sections returns the list of defined sections, excluding the global one.
 
-#### func (*Ini) Set
+#### func (*INI) Set
 
 ```go
-func (ini *Ini) Set(section, key, value string)
+func (ini *INI) Set(section, key, value string)
 ```
 Set adds the key with its value to the given section. If the section does not
 exist it is created. Setting an empty key adds a newline for the next keys.
 
-#### func (*Ini) SetComments
+#### func (*INI) SetComments
 
 ```go
-func (ini *Ini) SetComments(section, key string, comments ...string)
+func (ini *INI) SetComments(section, key string, comments ...string)
 ```
 SetComments sets the comments for the given section or key. Use an empty key to
 set the section comments.
 
-#### func (*Ini) WriteTo
+#### func (*INI) WriteTo
 
 ```go
-func (ini *Ini) WriteTo(w io.Writer) (int64, error)
+func (ini *INI) WriteTo(w io.Writer) (int64, error)
 ```
-WriteTo writes the contents of Ini to the given Writer.
+WriteTo writes the contents of INI to the given Writer.
 
 #### type Option
 
 ```go
-type Option func(*Ini) error
+type Option func(*INI) error
 ```
 
-Option allows setting various options when creating an Ini type.
+Option allows setting various options when creating an INI type.
 
 #### func  CaseSensitive
 
@@ -209,7 +209,7 @@ func MergeSections() Option
 ```
 MergeSections merges sections when multiple ones are defined instead of
 overwriting them, in which case the last one wins. This is only relevant when
-the Ini is being initialized by ReadFrom.
+the INI is being initialized by ReadFrom.
 
 #### func  SliceSeparator
 
