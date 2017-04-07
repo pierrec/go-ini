@@ -50,6 +50,10 @@ func Decode(r io.Reader, v interface{}) error {
 //  - time.Time and time.Duration
 //  - slices of the above types
 func (ini *INI) Decode(v interface{}) error {
+	return ini.decode("", v)
+}
+
+func (ini *INI) decode(defaultSection string, v interface{}) error {
 	// v must be a pointer.
 	ptr := reflect.ValueOf(v)
 	if ptr.Kind() != reflect.Ptr {
@@ -83,7 +87,12 @@ func (ini *INI) Decode(v interface{}) error {
 				reflect.String,
 				reflect.Slice:
 			case reflect.Struct:
-				err := ini.Decode(valuePtr.Interface())
+				section, _, _ := getTagInfo(field)
+				if section == "" && field.Anonymous {
+					// If embedded, use the field name as the default section name.
+					section = field.Name
+				}
+				err := ini.decode(section, valuePtr.Interface())
 				if err != nil {
 					return err
 				}
@@ -95,6 +104,9 @@ func (ini *INI) Decode(v interface{}) error {
 
 		// Lookup the section and key value.
 		section, key, _ := getTagInfo(field)
+		if section == "" {
+			section = defaultSection
+		}
 		keyValuePtr := ini.get(section, key)
 		if keyValuePtr == nil {
 			// Not found.

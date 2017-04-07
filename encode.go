@@ -29,6 +29,10 @@ func Encode(w io.Writer, v interface{}) error {
 // Encode sets Ini sections and keys according to the values defined in v.
 // v must be a pointer to a struct.
 func (ini *INI) Encode(v interface{}) error {
+	return ini.encode("", v)
+}
+
+func (ini *INI) encode(defaultSection string, v interface{}) error {
 	// v must be a pointer.
 	ptr := reflect.ValueOf(v)
 	if ptr.Kind() != reflect.Ptr {
@@ -62,7 +66,12 @@ func (ini *INI) Encode(v interface{}) error {
 				reflect.Float32, reflect.Float64,
 				reflect.String, reflect.Slice:
 			case reflect.Struct:
-				err := ini.Encode(valuePtr.Interface())
+				section, _, _ := getTagInfo(field)
+				if section == "" && field.Anonymous {
+					// If embedded, use the field name as the default section name.
+					section = field.Name
+				}
+				err := ini.encode(section, valuePtr.Interface())
 				if err != nil {
 					return err
 				}
@@ -73,6 +82,9 @@ func (ini *INI) Encode(v interface{}) error {
 		}
 
 		section, key, isLastKey := getTagInfo(field)
+		if section == "" {
+			section = defaultSection
+		}
 
 		var keyValue string
 		if isTexter {

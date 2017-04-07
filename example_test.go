@@ -36,8 +36,8 @@ func rot13(buf []byte) {
 }
 
 type User struct {
-	Username string   `ini:"usr,client"`
-	Password Password `ini:"pwd,client"`
+	Username string   `ini:"usr"`
+	Password Password `ini:"pwd"`
 }
 
 // Config is the structure to hold the data found in the ini source.
@@ -48,6 +48,9 @@ type Config struct {
 	Timeout  time.Duration `ini:"timeout,server"`
 	Deadline time.Time     `ini:"deadline,"`
 	// Embedded types are supported.
+	// If anonymous, the type name is used as the default section name.
+	// This behaviour can be overwritten by specifying the section name
+	// with a struct tag on the embedded type.
 	User
 	// As well as slices.
 	Children []string `ini:"children,family"`
@@ -80,7 +83,7 @@ func Example() {
 	// enabled = true
 	// timeout = 3s
 	//
-	// [client]
+	// [User]
 	// usr = bob the cat
 	// pwd = cnffjbeq
 	//

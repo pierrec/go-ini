@@ -477,7 +477,7 @@ func TestTexter(t *testing.T) {
 	// The MarshalText interface should be applied.
 	// Even to embedded structs.
 	type config struct {
-		Tuser
+		U Tuser
 	}
 
 	conf := config{Tuser{"secret"}}
@@ -495,6 +495,51 @@ func TestTexter(t *testing.T) {
 	}
 
 	// The password should be decoded using UnmarshalText.
+	conf.U.P = ""
+	if err := ini.Decode(buf, &conf); err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := string(conf.U.P), "secret"; got != want {
+		t.Fatalf("got '%v'; want '%v'", got, want)
+	}
+
+	// Texter error: the encoded password is invalid.
+	buf.Reset()
+	buf.WriteString("pwd = secret")
+	if err := ini.Decode(buf, &conf); err == nil {
+		t.Fatal("expected error")
+	}
+
+	conf.U.P = "doerror"
+	if err := ini.Encode(buf, &conf); err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestEmbeddedStruct(t *testing.T) {
+	// The MarshalText interface should be applied.
+	// Even to embedded structs.
+	type config struct {
+		Tuser
+	}
+
+	conf := config{Tuser{"secret"}}
+	buf := bytes.NewBuffer(nil)
+
+	// The password should be encoded using MarshalText.
+	if err := ini.Encode(buf, &conf); err != nil {
+		t.Fatal(err)
+	}
+
+	want := `[Tuser]
+pwd = __secret__
+`
+	if got := string(buf.Bytes()); got != want {
+		t.Fatalf("got '%v'; want '%v'", got, want)
+	}
+
+	// The password should be decoded using UnmarshalText.
 	conf.P = ""
 	if err := ini.Decode(buf, &conf); err != nil {
 		t.Fatal(err)
@@ -506,7 +551,7 @@ func TestTexter(t *testing.T) {
 
 	// Texter error: the encoded password is invalid.
 	buf.Reset()
-	buf.WriteString("pwd = secret")
+	buf.WriteString("[Tuser]\npwd = secret")
 	if err := ini.Decode(buf, &conf); err == nil {
 		t.Fatal("expected error")
 	}
