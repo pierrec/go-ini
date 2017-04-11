@@ -31,8 +31,13 @@ func (ini *INI) ReadFrom(r io.Reader) (int64, error) {
 		comments []string
 		// Current block.
 		items   []*iniItem
-		current *iniSection
+		current = ini.global
 	)
+	if current != nil {
+		// Use current global section.
+		items = current.Data
+	}
+
 	for {
 		// Parse the current line.
 		lineNum++
@@ -58,13 +63,23 @@ func (ini *INI) ReadFrom(r io.Reader) (int64, error) {
 			// Empty line is ignored unless used to separate:
 			// general section comments
 			// blocks of kvp
-			if n := len(ini.sections); n > 0 {
+			if ini.global == current && len(comments) > 0 {
+				if current == nil {
+					ini.global = &iniSection{Comments: comments}
+					current = ini.global
+				} else {
+					switch ini.mergeSections {
+					case mergeSectionsWithComments:
+						current.Comments = append(current.Comments, comments...)
+					case mergeSectionsWithLastComments:
+						current.Comments = comments
+					}
+				}
+				comments = nil
+			} else if current != nil {
 				ini.addItemsToSection(items, current)
 				items = nil
-			} else if ini.global == nil && len(comments) > 0 {
-				ini.global = &iniSection{Comments: comments}
 				comments = nil
-				current = ini.global
 			}
 			continue
 		}
@@ -80,11 +95,18 @@ func (ini *INI) ReadFrom(r io.Reader) (int64, error) {
 				return read, errInvalidSectionName
 			}
 
-			if !ini.mergeSections {
+			if ini.mergeSections == 0 {
 				// Remove any previous section with the same name.
 				ini.rmSection(name)
 			} else if section := ini.getSection(name); section != nil {
-				// Sections are merged: the new section comments are ignored.
+				// Sections are merged: the new section comments are merged with or
+				// overwrite the old ones.
+				switch ini.mergeSections {
+				case mergeSectionsWithComments:
+					section.Comments = append(section.Comments, comments...)
+				case mergeSectionsWithLastComments:
+					section.Comments = comments
+				}
 				comments = nil
 
 				ini.addItemsToSection(items, current)
@@ -132,7 +154,7 @@ func (ini *INI) ReadFrom(r io.Reader) (int64, error) {
 
 		// Deduplicate keys.
 		for i, item := range items {
-			if item.Key == key {
+			if item != nil && item.Key == key {
 				n := len(items) - 1
 				copy(items[i:], items[i+1:])
 				items[n] = nil

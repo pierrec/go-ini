@@ -15,14 +15,20 @@ const (
 // DefaultOptions lists the Options for the Encode and Decode functions to use.
 var DefaultOptions []Option
 
+const (
+	mergeSections = 1 + iota
+	mergeSectionsWithComments
+	mergeSectionsWithLastComments
+)
+
 var _ io.ReaderFrom = (*INI)(nil)
 var _ io.WriterTo = (*INI)(nil)
 
-// Ini represents the content of an ini source.
+// INI represents the content of an ini source.
 type INI struct {
 	comment         rune
 	isCaseSensitive bool
-	mergeSections   bool
+	mergeSections   int
 	sliceSep        string
 
 	// This is the global section, without a name.

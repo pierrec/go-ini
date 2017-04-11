@@ -65,6 +65,13 @@ func (ini *INI) printSection(w io.Writer, section *iniSection, showName bool) (i
 		if err != nil {
 			return written, err
 		}
+	} else if n > 0 {
+		// Newline separating the global section comments from its keys.
+		n, err := fmt.Fprintf(w, "\n")
+		written += n
+		if err != nil {
+			return written, err
+		}
 	}
 
 	// The items may be separated by a single newline.

@@ -87,7 +87,11 @@ func (ini *INI) decode(defaultSection string, v interface{}) error {
 				reflect.String,
 				reflect.Slice:
 			case reflect.Struct:
-				section, _, _ := getTagInfo(field)
+				section, key, _ := getTagInfo(field)
+				if key == "" {
+					// Omit the field.
+					continue
+				}
 				if section == "" && field.Anonymous {
 					// If embedded, use the field name as the default section name.
 					section = field.Name
@@ -104,6 +108,10 @@ func (ini *INI) decode(defaultSection string, v interface{}) error {
 
 		// Lookup the section and key value.
 		section, key, _ := getTagInfo(field)
+		if key == "" {
+			// Omit the field.
+			continue
+		}
 		if section == "" {
 			section = defaultSection
 		}

@@ -26,7 +26,25 @@ func CaseSensitive() Option {
 // This is only relevant when the Ini is being initialized by ReadFrom.
 func MergeSections() Option {
 	return func(ini *INI) error {
-		ini.mergeSections = true
+		ini.mergeSections = mergeSections
+		return nil
+	}
+}
+
+// MergeSectionsWithComments is equivalent to MergeSections but all the
+// section comments merged.
+func MergeSectionsWithComments() Option {
+	return func(ini *INI) error {
+		ini.mergeSections = mergeSectionsWithComments
+		return nil
+	}
+}
+
+// MergeSectionsWithLastComments is equivalent to MergeSections but the
+// section comments are set to the ones from the last section.
+func MergeSectionsWithLastComments() Option {
+	return func(ini *INI) error {
+		ini.mergeSections = mergeSectionsWithLastComments
 		return nil
 	}
 }

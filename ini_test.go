@@ -311,21 +311,43 @@ func TestEncode(t *testing.T) {
 	type config struct {
 		dummy int
 		io.Reader
-		A int           `ini:"idx,sec1"`
-		B string        `ini:"str,sec1"`
-		C bool          `ini:"flag,sec2"`
-		D time.Duration `ini:"dur,sec2"`
-		E time.Time     `ini:"date,sec2"`
-		F uint32        `ini:"hash,sec3"`
-		G float64       `ini:"v,sec3"`
+		Skip1 int           `ini:"-"`
+		Skip2 int           `ini:"-,sec"`
+		A     int           `ini:"idx,sec1"`
+		B     string        `ini:"str,sec1"`
+		C     bool          `ini:"flag,sec2"`
+		D     time.Duration `ini:"dur,sec2"`
+		E     time.Time     `ini:"date,sec2"`
+		F     uint32        `ini:"hash,sec3"`
+		G     float64       `ini:"v,sec3"`
+		H     int
 	}
 
 	buf := new(bytes.Buffer)
 	date, _ := time.Parse("2006-Jan-02", "2013-Feb-03")
-	conf := &config{1, nil, 123, "abc", true, time.Second, date, 0xC4F3, 1.234}
+	conf := &config{1, nil, 0, 0, 123, "abc", true, time.Second, date, 0xC4F3, 1.234, 0}
 
 	if err := ini.Encode(buf, conf); err != nil {
 		t.Fatal(err)
+	}
+
+	want := `H = 0
+
+[sec1]
+idx = 123
+str = abc
+
+[sec2]
+flag = true
+dur  = 1s
+date = 2013-02-03T00:00:00Z
+
+[sec3]
+hash = 50419
+v    = 1.234
+`
+	if got := string(buf.Bytes()); got != want {
+		t.Fatalf("got %v; want %v", got, want)
 	}
 }
 
@@ -333,17 +355,19 @@ func TestDecode(t *testing.T) {
 	type config struct {
 		dummy int
 		io.Reader
-		A  int           `ini:"idx,sec1"`
-		B  string        `ini:"str,sec1"`
-		B1 string        `ini:"str2,sec1"`
-		B2 string        `ini:"str3,sec1"`
-		B3 string        `ini:"str4,sec1"`
-		C  bool          `ini:"flag,sec2"`
-		D  time.Duration `ini:"dur,sec2"`
-		E  time.Time     `ini:"date,sec2"`
-		F  uint32        `ini:"hash,sec3"`
-		G  float64       `ini:"v,sec3"`
-		S  []int         `ini:"lst,sec3"`
+		Skip1 int           `ini:"-"`
+		Skip2 int           `ini:"-,sec"`
+		A     int           `ini:"idx,sec1"`
+		B     string        `ini:"str,sec1"`
+		B1    string        `ini:"str2,sec1"`
+		B2    string        `ini:"str3,sec1"`
+		B3    string        `ini:"str4,sec1"`
+		C     bool          `ini:"flag,sec2"`
+		D     time.Duration `ini:"dur,sec2"`
+		E     time.Time     `ini:"date,sec2"`
+		F     uint32        `ini:"hash,sec3"`
+		G     float64       `ini:"v,sec3"`
+		S     []int         `ini:"lst,sec3"`
 	}
 
 	data := `
@@ -373,7 +397,7 @@ lst=1,2,3
 		}
 
 		date, _ := time.Parse(time.RFC3339, "2006-01-02T15:04:05Z")
-		got, want := conf, config{0, nil, 123, "a\"b\"c", "a\"bc", "", "abc", true, time.Second, date, 0xC4F3, 1.234, []int{1, 2, 3}}
+		got, want := conf, config{0, nil, 0, 0, 123, "a\"b\"c", "a\"bc", "", "abc", true, time.Second, date, 0xC4F3, 1.234, []int{1, 2, 3}}
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("got %v; want %v", got, want)
 		}
@@ -517,11 +541,50 @@ func TestTexter(t *testing.T) {
 	}
 }
 
+func TestEmbeddedStructTags(t *testing.T) {
+	type Embed1 struct{ V int }
+	type Embed2 struct{ V int }
+	type Embed3 struct{ V int }
+	type config struct {
+		Embed1
+		Embed2 `ini:",Section"`
+		Embed3 `ini:"-"`
+	}
+
+	conf := &config{Embed1{1}, Embed2{2}, Embed3{3}}
+	buf := bytes.NewBuffer(nil)
+
+	if err := ini.Encode(buf, conf); err != nil {
+		t.Fatal(err)
+	}
+
+	want := `[Embed1]
+V = 1
+
+[Section]
+V = 2
+`
+	if got := string(buf.Bytes()); got != want {
+		t.Fatalf("got '%v'; want '%v'", got, want)
+	}
+
+	decodedconf := &config{}
+	if err := ini.Decode(buf, decodedconf); err != nil {
+		t.Fatal(err)
+	}
+
+	conf.Embed3.V = 0 // Embed3 is omitted.
+	if got, want := *decodedconf, *conf; got != want {
+		t.Fatalf("got '%v'; want '%v'", got, want)
+	}
+}
+
 func TestEmbeddedStruct(t *testing.T) {
 	// The MarshalText interface should be applied.
 	// Even to embedded structs.
+	type Skip struct{ int }
 	type config struct {
-		Tuser
+		Tuser `ini:",User"`
 	}
 
 	conf := config{Tuser{"secret"}}
@@ -532,7 +595,7 @@ func TestEmbeddedStruct(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	want := `[Tuser]
+	want := `[User]
 pwd = __secret__
 `
 	if got := string(buf.Bytes()); got != want {
@@ -551,7 +614,7 @@ pwd = __secret__
 
 	// Texter error: the encoded password is invalid.
 	buf.Reset()
-	buf.WriteString("[Tuser]\npwd = secret")
+	buf.WriteString("[User]\npwd = secret")
 	if err := ini.Decode(buf, &conf); err == nil {
 		t.Fatal("expected error")
 	}
@@ -740,6 +803,7 @@ k1 = abc
 
 	want := `; Global section comment1
 ; Global section comment2
+
 Gk1 = gv1
 
 ; sectionA comment1
@@ -780,12 +844,15 @@ k1 = abc
 }
 
 func TestSetComments(t *testing.T) {
-	data := `
+	data := `k0 = 123
+
 [sectionA]
 k1 = xyz
 `
 
 	want := `#Global section comment
+
+k0 = 123
 
 #sectionA comment
 [sectionA]
@@ -885,16 +952,18 @@ kk = vv
 	for _, size := range []int64{
 		// Global section comment fails.
 		1,
-		// Newline between sections fails.
+		// Global section comment newline fails.
 		3,
-		// Section name fails.
+		// Newline between sections fails.
 		4,
+		// Section name fails.
+		5,
 		// Key comment fails.
-		8,
+		9,
 		// Key name fails.
-		10,
+		11,
 		// Newline between keys fails.
-		16,
+		17,
 	} {
 		w := &faultyWriter{size}
 
@@ -921,5 +990,91 @@ func TestReset(t *testing.T) {
 
 	if n := len(conf.Keys("")); n != 0 {
 		t.Fatalf("expected no keys in the global section")
+	}
+}
+
+func TestMergingSectionsWithComments(t *testing.T) {
+	conf, _ := ini.New(ini.Comment('#'), ini.MergeSectionsWithComments())
+	conf.SetComments("", "", " global comment")
+	conf.Set("", "key1", "value1")
+	conf.SetComments("sectionA", "", " section comment")
+	conf.Set("sectionA", "keyA", "valueA")
+
+	data := `# second global comment
+
+key2 = value2
+
+# second section comment
+[sectionA]
+keyA2 = 2
+`
+	buf := bytes.NewBufferString(data)
+
+	if _, err := conf.ReadFrom(buf); err != nil {
+		t.Fatal(err)
+	}
+
+	want := `# global comment
+# second global comment
+
+key1 = value1
+key2 = value2
+
+# section comment
+# second section comment
+[sectionA]
+keyA  = valueA
+keyA2 = 2
+`
+	buf.Reset()
+
+	if _, err := conf.WriteTo(buf); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := string(buf.Bytes()); got != want {
+		t.Fatalf("got '%v'; want '%v'", got, want)
+	}
+}
+
+func TestMergingSectionsWithLastComments(t *testing.T) {
+	conf, _ := ini.New(ini.Comment('#'), ini.MergeSectionsWithLastComments())
+	conf.SetComments("", "", " global comment")
+	conf.Set("", "key1", "value1")
+	conf.SetComments("sectionA", "", " section comment")
+	conf.Set("sectionA", "keyA", "valueA")
+
+	data := `# second global comment
+
+key2 = value2
+
+# second section comment
+[sectionA]
+keyA2 = 2
+`
+	buf := bytes.NewBufferString(data)
+
+	if _, err := conf.ReadFrom(buf); err != nil {
+		t.Fatal(err)
+	}
+
+	want := `# second global comment
+
+key1 = value1
+key2 = value2
+
+# second section comment
+[sectionA]
+keyA  = valueA
+keyA2 = 2
+`
+	buf.Reset()
+
+	if _, err := conf.WriteTo(buf); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := string(buf.Bytes()); got != want {
+		t.Fatalf("got '%v'; want '%v'", got, want)
 	}
 }

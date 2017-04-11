@@ -16,5 +16,11 @@ implementation follows these rules:
  - in case of conflicting section names, only the last one is considered
  by default. However, if specified during initialization, the keys of
  conflicting sections can be merged.
+
+Behaviour of INI processing can be modified using struct tags. The struct tags
+are defined by the "ini" keyword. The struct tags format is:
+  <key name>[,section name[,last key in a block]]
+
+If a key name is '-' then the struct field is ignored.
 */
 package ini

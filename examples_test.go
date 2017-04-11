@@ -146,6 +146,7 @@ func ExampleIni_WriteTo() {
 	}
 
 	// Output: # Main
+	//
 	// id = ID2
 	//
 	// # Server definition

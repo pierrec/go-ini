@@ -66,7 +66,11 @@ func (ini *INI) encode(defaultSection string, v interface{}) error {
 				reflect.Float32, reflect.Float64,
 				reflect.String, reflect.Slice:
 			case reflect.Struct:
-				section, _, _ := getTagInfo(field)
+				section, key, _ := getTagInfo(field)
+				if key == "" {
+					// Omit the field.
+					continue
+				}
 				if section == "" && field.Anonymous {
 					// If embedded, use the field name as the default section name.
 					section = field.Name
@@ -82,6 +86,10 @@ func (ini *INI) encode(defaultSection string, v interface{}) error {
 		}
 
 		section, key, isLastKey := getTagInfo(field)
+		if key == "" {
+			// Omit the field.
+			continue
+		}
 		if section == "" {
 			section = defaultSection
 		}
@@ -116,31 +124,36 @@ func (ini *INI) encode(defaultSection string, v interface{}) error {
 }
 
 // Figure out the key and section to look for in Ini.
-// If not specified, use the field name as the key.
+// If the field is to be ignored, the returned key name is empty.
+// Otherwise, if it is not specified, the field name is used as the key.
 // A struct tag may contain 3 entries:
 //  - the key name (defaults to the field name)
 //  - the section name (defaults to the global section)
 //  - whether the key is the last of a block, which introduces a newline
-func getTagInfo(field reflect.StructField) (string, string, bool) {
-	var section, key string
-	var isLastKey bool
-	if tag := field.Tag.Get("ini"); tag != "" {
-		lst := strings.Split(tag, ",")
-		n := len(lst)
-		if n > 0 {
-			key = lst[0]
-		}
-		if n > 1 {
-			section = lst[1]
-		}
-		if n > 2 {
-			isLastKey, _ = strconv.ParseBool(lst[2])
-		}
-	}
-	if key == "" {
+func getTagInfo(field reflect.StructField) (section, key string, isLastKey bool) {
+	tag := field.Tag.Get("ini")
+	if tag == "" {
 		key = field.Name
+		return
 	}
-	return section, key, isLastKey
+	if tag[0] == '-' {
+		return
+	}
+	lst := strings.Split(tag, ",")
+	n := len(lst)
+	if n > 0 {
+		key = lst[0]
+		if key == "" {
+			key = field.Name
+		}
+	}
+	if n > 1 {
+		section = lst[1]
+	}
+	if n > 2 {
+		isLastKey, _ = strconv.ParseBool(lst[2])
+	}
+	return
 }
 
 // getMarshalTexter returns the pointer to the Value and whether it
