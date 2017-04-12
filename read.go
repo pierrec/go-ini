@@ -29,14 +29,10 @@ func (ini *INI) ReadFrom(r io.Reader) (int64, error) {
 		// Comments currently parsed.
 		// They are valid for the next element (Section or Item) or global.
 		comments []string
-		// Current block.
+		// Current block and items in the io.Reader.
+		current *iniSection
 		items   []*iniItem
-		current = ini.global
 	)
-	if current != nil {
-		// Use current global section.
-		items = current.Data
-	}
 
 	for {
 		// Parse the current line.
@@ -50,7 +46,11 @@ func (ini *INI) ReadFrom(r io.Reader) (int64, error) {
 			// There is potentially data along the io.EOF error.
 			// Ignore the error until there is no more data.
 			if len(line) == 0 {
-				ini.addItemsToSection(items, current)
+				if current == nil {
+					ini.updateSection(items, comments, &ini.global)
+				} else {
+					ini.addItemsToSection(items, current)
+				}
 				return read, nil
 			}
 		}
@@ -63,24 +63,18 @@ func (ini *INI) ReadFrom(r io.Reader) (int64, error) {
 			// Empty line is ignored unless used to separate:
 			// general section comments
 			// blocks of kvp
-			if ini.global == current && len(comments) > 0 {
-				if current == nil {
-					ini.global = &iniSection{Comments: comments}
-					current = ini.global
-				} else {
-					switch ini.mergeSections {
-					case mergeSectionsWithComments:
-						current.Comments = append(current.Comments, comments...)
-					case mergeSectionsWithLastComments:
-						current.Comments = comments
-					}
+			if current == nil {
+				// Global section not defined yet.
+				if len(comments) == 0 && len(items) == 0 {
+					continue
 				}
-				comments = nil
-			} else if current != nil {
+				current = &ini.global
+				ini.updateSection(items, comments, current)
+			} else {
 				ini.addItemsToSection(items, current)
-				items = nil
-				comments = nil
 			}
+			items = nil
+			comments = nil
 			continue
 		}
 
@@ -99,20 +93,10 @@ func (ini *INI) ReadFrom(r io.Reader) (int64, error) {
 				// Remove any previous section with the same name.
 				ini.rmSection(name)
 			} else if section := ini.getSection(name); section != nil {
-				// Sections are merged: the new section comments are merged with or
-				// overwrite the old ones.
-				switch ini.mergeSections {
-				case mergeSectionsWithComments:
-					section.Comments = append(section.Comments, comments...)
-				case mergeSectionsWithLastComments:
-					section.Comments = comments
-				}
-				comments = nil
-
-				ini.addItemsToSection(items, current)
-				items = nil
-
 				current = section
+				ini.updateSection(items, comments, current)
+				comments = nil
+				items = nil
 				continue
 			}
 
@@ -154,12 +138,13 @@ func (ini *INI) ReadFrom(r io.Reader) (int64, error) {
 
 		// Deduplicate keys.
 		for i, item := range items {
-			if item != nil && item.Key == key {
-				n := len(items) - 1
-				copy(items[i:], items[i+1:])
-				items[n] = nil
-				items = items[:n]
+			if ident(ini.isCaseSensitive, item.Key) != key {
+				continue
 			}
+			n := len(items) - 1
+			copy(items[i:], items[i+1:])
+			items[n] = nil
+			items = items[:n]
 		}
 
 		item := &iniItem{
@@ -172,31 +157,42 @@ func (ini *INI) ReadFrom(r io.Reader) (int64, error) {
 	}
 }
 
+func (ini *INI) updateSection(items []*iniItem, comments []string, section *iniSection) {
+	switch ini.mergeSections {
+	case mergeSections:
+		section.Comments = comments
+	case mergeSectionsWithComments:
+		section.Comments = append(section.Comments, comments...)
+	case mergeSectionsWithLastComments:
+		section.Comments = comments
+	default:
+		section.Comments = comments
+	}
+
+	ini.addItemsToSection(items, section)
+}
+
 func (ini *INI) addItemsToSection(items []*iniItem, section *iniSection) {
 	if len(items) == 0 {
 		return
 	}
 
-	if section == nil {
-		ini.global = &iniSection{}
-		section = ini.global
-	}
-
 	// Keys and values.
-	section.Data = dedupItems(section.Data, items)
+	section.Data = dedupItems(section.Data, items, ini.isCaseSensitive)
 	// Blank line.
 	section.Data = append(section.Data, nil)
 }
 
 // dedupItems only deduplicates items between slices, not within the slices.
-func dedupItems(a, b []*iniItem) []*iniItem {
+func dedupItems(a, b []*iniItem, flag bool) []*iniItem {
 	for i := 0; i < len(a); i++ {
 		itemA := a[i]
 		if itemA == nil {
 			continue
 		}
+		keyA := ident(flag, itemA.Key)
 		for _, itemB := range b {
-			if itemB == nil || itemA.Key != itemB.Key {
+			if keyA != ident(flag, itemB.Key) {
 				continue
 			}
 			copy(a[i:], a[i+1:])

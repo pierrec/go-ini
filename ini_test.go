@@ -122,6 +122,9 @@ func TestSetGet(t *testing.T) {
 	if got, want := conf.Get("sec2", "k1"), ""; got != want {
 		t.Fatalf("got %v; want %v", got, want)
 	}
+	if got, want := len(conf.Keys("sec2")), 0; got != want {
+		t.Fatalf("got %v; want %v", got, want)
+	}
 
 	// Add a new empty section.
 	conf.Set("sec2", "", "")
@@ -630,7 +633,10 @@ pwd = __secret__
 }
 
 func TestOverwritingSections(t *testing.T) {
-	data := `
+	data := `a=b
+
+x=y
+
 [sectionA]
 key1 = abc
 key2 = xyz
@@ -639,7 +645,11 @@ key2 = xyz
 key1 = v1.1
 k2   = v1.2
 `
-	want := `[sectionA]
+	want := `a = b
+
+x = y
+
+[sectionA]
 key1 = v1.1
 k2   = v1.2
 `
@@ -862,6 +872,9 @@ k0 = 123
 [sectionA]
 #A.k1 comment
 k1 = xyz
+
+#sectionB comment
+[sectionB]
 `
 
 	buf := bytes.NewBufferString(data)
@@ -876,6 +889,7 @@ k1 = xyz
 	conf.SetComments("sectionA", "", "sectionA comment")
 	conf.SetComments("sectionA", "k1", "A.k1 comment")
 	conf.SetComments("sectionA", "k", "missing key comment")
+	conf.SetComments("sectionB", "", "sectionB comment")
 
 	if _, err := conf.WriteTo(output); err != nil {
 		t.Fatal(err)
@@ -940,6 +954,8 @@ func TestFaultyWriter(t *testing.T) {
 
 	data := `;
 
+gk = gv
+
 [s]
 ;
 k = v
@@ -948,6 +964,7 @@ kk = vv
 `
 	_ = data
 	conf.SetComments("", "", "")
+	conf.Set("", "gk", "gv")
 	conf.Set("s", "k", "v")
 	conf.Set("s", "", "")
 	conf.SetComments("s", "k", "")
@@ -958,22 +975,24 @@ kk = vv
 		1,
 		// Global section comment newline fails.
 		3,
-		// Newline between sections fails.
+		// Global section key name fails.
 		4,
+		// Newline between sections fails.
+		12,
 		// Section name fails.
-		5,
+		13,
 		// Key comment fails.
-		9,
-		// Key name fails.
-		11,
-		// Newline between keys fails.
 		17,
+		// Key name fails.
+		19,
+		// Newline between keys fails.
+		25,
 	} {
 		w := &faultyWriter{size}
 
 		n, err := conf.WriteTo(w)
 		if err == nil {
-			t.Fatal("expected error")
+			t.Fatalf("expected error for size %d", size)
 		}
 		if got, want := n, size; got != want {
 			t.Fatalf("got '%v'; want '%v'", got, want)

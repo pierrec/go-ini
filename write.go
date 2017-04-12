@@ -10,25 +10,22 @@ func (ini *INI) WriteTo(w io.Writer) (int64, error) {
 	var written int64
 
 	// Global section.
-	var hasGlobal bool
-	if sec := ini.global; sec != nil {
-		m, err := ini.printSection(w, sec, false)
-		written += int64(m)
-		if err != nil {
-			return written, err
-		}
-		hasGlobal = true
+	m, err := ini.printSection(w, &ini.global)
+	written += int64(m)
+	if err != nil {
+		return written, err
 	}
+	first := len(ini.global.Data) > 0
 
 	for i, section := range ini.sections {
-		if i > 0 || hasGlobal {
+		if i > 0 || first {
 			m, err := fmt.Fprintf(w, "\n")
 			written += int64(m)
 			if err != nil {
 				return written, err
 			}
 		}
-		m, err := ini.printSection(w, section, true)
+		m, err := ini.printSection(w, section)
 		written += int64(m)
 		if err != nil {
 			return written, err
@@ -50,7 +47,7 @@ func (ini *INI) printComments(w io.Writer, comments []string) (int, error) {
 	return written, nil
 }
 
-func (ini *INI) printSection(w io.Writer, section *iniSection, showName bool) (int, error) {
+func (ini *INI) printSection(w io.Writer, section *iniSection) (int, error) {
 	var written int
 
 	n, err := ini.printComments(w, section.Comments)
@@ -59,7 +56,8 @@ func (ini *INI) printSection(w io.Writer, section *iniSection, showName bool) (i
 		return written, err
 	}
 
-	if showName {
+	isGlobal := section.Name == ""
+	if !isGlobal {
 		n, err := fmt.Fprintf(w, "[%s]\n", section.Name)
 		written += n
 		if err != nil {

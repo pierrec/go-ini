@@ -32,7 +32,7 @@ type INI struct {
 	sliceSep        string
 
 	// This is the global section, without a name.
-	global *iniSection
+	global iniSection
 
 	// Named sections.
 	sections []*iniSection
@@ -60,21 +60,18 @@ func New(options ...Option) (*INI, error) {
 // Reset clears all sections with their associated comments and keys.
 // Initial Options are retained.
 func (ini *INI) Reset() {
-	ini.global = nil
+	ini.global = iniSection{}
 	ini.sections = nil
 }
 
 func (ini *INI) getSection(section string) *iniSection {
 	if section == "" {
-		return ini.global
+		return &ini.global
 	}
 
-	flag := ini.isCaseSensitive
-	if !flag {
-		section = strings.ToLower(section)
-	}
+	section = ident(ini.isCaseSensitive, section)
 	for _, s := range ini.sections {
-		if (flag && s.Name == section) || (!flag && strings.ToLower(s.Name) == section) {
+		if ident(ini.isCaseSensitive, s.Name) == section {
 			return s
 		}
 	}
@@ -83,21 +80,14 @@ func (ini *INI) getSection(section string) *iniSection {
 
 func (ini *INI) addSection(section string) *iniSection {
 	sec := &iniSection{Name: section}
-	if section == "" {
-		ini.global = sec
-	} else {
-		ini.sections = append(ini.sections, sec)
-	}
+	ini.sections = append(ini.sections, sec)
 	return sec
 }
 
 func (ini *INI) rmSection(section string) bool {
-	flag := ini.isCaseSensitive
-	if !flag {
-		section = strings.ToLower(section)
-	}
+	section = ident(ini.isCaseSensitive, section)
 	for i, s := range ini.sections {
-		if (flag && s.Name == section) || (!flag && strings.ToLower(s.Name) == section) {
+		if ident(ini.isCaseSensitive, s.Name) == section {
 			n := len(ini.sections) - 1
 			copy(ini.sections[i:], ini.sections[i+1:])
 			ini.sections[n] = nil
@@ -221,7 +211,7 @@ func (ini *INI) Del(section, key string) bool {
 	// Remove the section.
 	if key == "" {
 		if section == "" {
-			ini.global = nil
+			ini.global = iniSection{}
 			return true
 		}
 
@@ -230,4 +220,12 @@ func (ini *INI) Del(section, key string) bool {
 
 	// Remove the key for the section.
 	return ini.getSection(section).rmItem(key, ini.isCaseSensitive)
+}
+
+// ident returns a lowercased identifier if required.
+func ident(isCaseSensitive bool, s string) string {
+	if isCaseSensitive {
+		return s
+	}
+	return strings.ToLower(s)
 }

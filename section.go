@@ -1,7 +1,5 @@
 package ini
 
-import "strings"
-
 // iniSection represents a named section for keys.
 // It may have comments.
 // The Section may contain identical keys.
@@ -27,14 +25,13 @@ func (s *iniSection) getItem(key string, flag bool) *iniItem {
 	if s == nil {
 		return nil
 	}
-	if !flag {
-		key = strings.ToLower(key)
-	}
+	key = ident(flag, key)
+
 	for _, item := range s.Data {
 		if item == nil {
 			continue
 		}
-		if (flag && item.Key == key) || (!flag && strings.ToLower(item.Key) == key) {
+		if ident(flag, item.Key) == key {
 			return item
 		}
 	}
@@ -46,14 +43,12 @@ func (s *iniSection) rmItem(key string, flag bool) bool {
 	if s == nil {
 		return false
 	}
-	if !flag {
-		key = strings.ToLower(key)
-	}
+	key = ident(flag, key)
 	for i, item := range s.Data {
 		if item == nil {
 			continue
 		}
-		if (flag && item.Key == key) || (!flag && strings.ToLower(item.Key) == key) {
+		if ident(flag, item.Key) == key {
 			n := len(s.Data) - 1
 			skip := 1
 			// Remove newline if the key was the last one in the block.
