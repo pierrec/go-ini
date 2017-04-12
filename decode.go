@@ -185,7 +185,10 @@ func (ini *INI) decodeValue(value, valuePtr reflect.Value, isTexter bool, keyVal
 	case reflect.String:
 		value.SetString(*keyValuePtr)
 	case reflect.Slice:
-		keyValues := strings.Split(*keyValuePtr, ini.sliceSep)
+		var keyValues []string
+		if *keyValuePtr != "" {
+			keyValues = strings.Split(*keyValuePtr, ini.sliceSep)
+		}
 		elem := valueType.Elem()
 		sliceValues := reflect.MakeSlice(valueType, 0, len(keyValues))
 		for i := range keyValues {

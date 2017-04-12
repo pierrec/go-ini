@@ -368,6 +368,7 @@ func TestDecode(t *testing.T) {
 		F     uint32        `ini:"hash,sec3"`
 		G     float64       `ini:"v,sec3"`
 		S     []int         `ini:"lst,sec3"`
+		SS    []string      `ini:"slst,sec3"`
 	}
 
 	data := `
@@ -385,6 +386,7 @@ date=2006-01-02T15:04:05Z
 hash=0xC4F3
 v=1.234
 lst=1,2,3
+slst=a,b,c
 `
 
 	for _, ending := range []string{"\n", "\r\n"} {
@@ -397,7 +399,9 @@ lst=1,2,3
 		}
 
 		date, _ := time.Parse(time.RFC3339, "2006-01-02T15:04:05Z")
-		got, want := conf, config{0, nil, 0, 0, 123, "a\"b\"c", "a\"bc", "", "abc", true, time.Second, date, 0xC4F3, 1.234, []int{1, 2, 3}}
+		got, want := conf, config{0, nil, 0, 0, 123, "a\"b\"c", "a\"bc", "",
+			"abc", true, time.Second, date, 0xC4F3, 1.234,
+			[]int{1, 2, 3}, []string{"a", "b", "c"}}
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("got %v; want %v", got, want)
 		}
