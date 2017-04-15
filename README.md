@@ -1,12 +1,14 @@
-[![GoDoc](https://godoc.org/github.com/pierrec/go-ini?status.png)](https://godoc.org/github.com/pierrec/go-ini)
-[![Build Status](https://travis-ci.org/pierrec/go-ini.svg?branch=master)](https://travis-ci.org/pierrec/go-ini)
-[![Coverage Status](https://coveralls.io/repos/github/pierrec/go-ini/badge.svg?branch=master)](https://coveralls.io/github/pierrec/go-ini?branch=master)
-[![Go Report Card](https://goreportcard.com/badge/github.com/pierrec/go-ini)](https://goreportcard.com/report/github.com/pierrec/go-ini)
+
 
 # ini
---
-    import "github.com/pierrec/go-ini"
+`import "github.com/pierrec/go-ini"`
 
+* [Overview](#pkg-overview)
+* [Index](#pkg-index)
+* [Examples](#pkg-examples)
+* [Subdirectories](#pkg-subdirectories)
+
+## <a name="pkg-overview">Overview</a>
 Package ini provides parsing and pretty printing methods for ini config files
 including comments for sections and keys. The ini data can also be loaded
 from/to structures using struct tags.
@@ -14,207 +16,340 @@ from/to structures using struct tags.
 Since there is not really a strict definition for the ini file format, this
 implementation follows these rules:
 
-    - a section name cannot be empty unless it is the global one
-    - leading and trailing whitespaces for key names are ignored
-    - leading whitespace for key values are ignored
-    - all characters from the first non whitespace to the end of the line are
-    accepted for a value, unless the value is single or double quoted
-    - anything after a quoted value is ignored
-    - section and key names are not case sensitive by default
-    - in case of conflicting key names, only the last one is used
-    - in case of conflicting section names, only the last one is considered
-    by default. However, if specified during initialization, the keys of
-    conflicting sections can be merged.
 
-## Usage
+	- a section name cannot be empty unless it is the global one
+	- leading and trailing whitespaces for key names are ignored
+	- leading whitespace for key values are ignored
+	- all characters from the first non whitespace to the end of the line are
+	accepted for a value, unless the value is single or double quoted
+	- anything after a quoted value is ignored
+	- section and key names are not case sensitive by default
+	- in case of conflicting key names, only the last one is used
+	- in case of conflicting section names, only the last one is considered
+	by default. However, if specified during initialization, the keys of
+	conflicting sections can be merged.
 
-```go
+Behaviour of INI processing can be modified using struct tags. The struct tags
+are defined by the "ini" keyword. The struct tags format is:
+
+
+	<key name>[,section name[,last key in a block]]
+
+If a key name is '-' then the struct field is ignored.
+
+
+
+
+## <a name="pkg-index">Index</a>
+* [Constants](#pkg-constants)
+* [Variables](#pkg-variables)
+* [func Decode(r io.Reader, v interface{}) error](#Decode)
+* [func Encode(w io.Writer, v interface{}) error](#Encode)
+* [type INI](#INI)
+  * [func New(options ...Option) (*INI, error)](#New)
+  * [func (ini *INI) Decode(v interface{}) error](#INI.Decode)
+  * [func (ini *INI) Del(section, key string) bool](#INI.Del)
+  * [func (ini *INI) Encode(v interface{}) error](#INI.Encode)
+  * [func (ini *INI) Get(section, key string) string](#INI.Get)
+  * [func (ini *INI) GetComments(section, key string) []string](#INI.GetComments)
+  * [func (ini *INI) Has(section, key string) bool](#INI.Has)
+  * [func (ini *INI) Keys(section string) []string](#INI.Keys)
+  * [func (ini *INI) ReadFrom(r io.Reader) (int64, error)](#INI.ReadFrom)
+  * [func (ini *INI) Reset()](#INI.Reset)
+  * [func (ini *INI) Sections() []string](#INI.Sections)
+  * [func (ini *INI) Set(section, key, value string)](#INI.Set)
+  * [func (ini *INI) SetComments(section, key string, comments ...string)](#INI.SetComments)
+  * [func (ini *INI) WriteTo(w io.Writer) (int64, error)](#INI.WriteTo)
+* [type Option](#Option)
+  * [func CaseSensitive() Option](#CaseSensitive)
+  * [func Comment(prefix string) Option](#Comment)
+  * [func MergeSections() Option](#MergeSections)
+  * [func MergeSectionsWithComments() Option](#MergeSectionsWithComments)
+  * [func MergeSectionsWithLastComments() Option](#MergeSectionsWithLastComments)
+  * [func SliceSeparator(sep string) Option](#SliceSeparator)
+
+#### <a name="pkg-examples">Examples</a>
+* [Package](#example_)
+* [Decode](#example_Decode)
+* [Encode](#example_Encode)
+
+#### <a name="pkg-files">Package files</a>
+[decode.go](/src/github.com/pierrec/go-ini/decode.go) [doc.go](/src/github.com/pierrec/go-ini/doc.go) [encode.go](/src/github.com/pierrec/go-ini/encode.go) [ini.go](/src/github.com/pierrec/go-ini/ini.go) [options.go](/src/github.com/pierrec/go-ini/options.go) [read.go](/src/github.com/pierrec/go-ini/read.go) [section.go](/src/github.com/pierrec/go-ini/section.go) [write.go](/src/github.com/pierrec/go-ini/write.go) 
+
+
+## <a name="pkg-constants">Constants</a>
+``` go
 const (
-	// DefaultComment is the default value used to prefix comments.
-	DefaultComment = ';'
-	// DefaultSliceSeparator is the default slice separator used to decode and encode slices.
-	DefaultSliceSeparator = ","
+    // DefaultComment is the default value used to prefix comments.
+    DefaultComment = ";"
+    // DefaultSliceSeparator is the default slice separator used to decode and encode slices.
+    DefaultSliceSeparator = ","
 )
 ```
 
-```go
+## <a name="pkg-variables">Variables</a>
+``` go
 var DefaultOptions []Option
 ```
 DefaultOptions lists the Options for the Encode and Decode functions to use.
 
-#### func  Decode
 
-```go
+
+## <a name="Decode">func</a> [Decode](/src/target/decode.go?s=596:641#L19)
+``` go
 func Decode(r io.Reader, v interface{}) error
 ```
-Decode populates v with the INI values from the Reader. DefaultOptions are used.
-See INI.Decode() for more information.
+Decode populates v with the Ini values from the Reader.
+DefaultOptions are used.
+See Ini.Decode() for more information.
 
-#### func  Encode
 
-```go
+
+## <a name="Encode">func</a> [Encode](/src/target/encode.go?s=286:331#L7)
+``` go
 func Encode(w io.Writer, v interface{}) error
 ```
-Encode writes the contents of v to the given Writer. DefaultOptions are used.
-See INI.Encode() for more information.
+Encode writes the contents of v to the given Writer.
+DefaultOptions are used.
+See Ini.Encode() for more information.
 
-#### type INI
 
-```go
+
+
+## <a name="INI">type</a> [INI](/src/target/ini.go?s=579:802#L18)
+``` go
 type INI struct {
+    // contains filtered or unexported fields
 }
 ```
-
 INI represents the content of an ini source.
 
-#### func  New
 
-```go
+
+
+
+
+
+### <a name="New">func</a> [New](/src/target/ini.go?s=858:899#L32)
+``` go
 func New(options ...Option) (*INI, error)
 ```
-New instantiates a new INI type ready for parsing.
+New instantiates a new Ini type ready for parsing.
 
-#### func (*INI) Decode
 
-```go
+
+
+
+### <a name="INI.Decode">func</a> (\*INI) [Decode](/src/target/decode.go?s=1304:1347#L42)
+``` go
 func (ini *INI) Decode(v interface{}) error
 ```
-Decode decodes the INI values into v, which must be a pointer to a struct. If
-the struct field tag has not defined the key name then the name of the field is
-used. The INI section is defined as the second item in the struct tag. Supported
-types for the struct fields are:
+Decode decodes the Ini values into v, which must be a pointer to a struct.
+If the struct field tag has not defined the key name
+then the name of the field is used.
+The Ini section is defined as the second item in the struct tag.
+Supported types for the struct fields are:
 
-    - types implementing the encoding.TextUnmarshaler interface
-    - all signed and unsigned integers
-    - float32 and float64
-    - string
-    - bool
-    - time.Time and time.Duration
-    - slices of the above types
 
-#### func (*INI) Del
+	- types implementing the encoding.TextUnmarshaler interface
+	- all signed and unsigned integers
+	- float32 and float64
+	- string
+	- bool
+	- time.Time and time.Duration
+	- slices of the above types
 
-```go
+
+
+
+### <a name="INI.Del">func</a> (\*INI) [Del](/src/target/ini.go?s=5035:5080#L209)
+``` go
 func (ini *INI) Del(section, key string) bool
 ```
-Del removes a section or key from INI returning whether or not it did. Set the
-key to an empty string to remove a section.
+Del removes a section or key from Ini returning whether or not it did.
+Set the key to an empty string to remove a section.
 
-#### func (*INI) Encode
 
-```go
+
+
+### <a name="INI.Encode">func</a> (\*INI) [Encode](/src/target/encode.go?s=608:651#L21)
+``` go
 func (ini *INI) Encode(v interface{}) error
 ```
-Encode sets INI sections and keys according to the values defined in v. v must
-be a pointer to a struct.
+Encode sets Ini sections and keys according to the values defined in v.
+v must be a pointer to a struct.
 
-#### func (*INI) Get
 
-```go
+
+
+### <a name="INI.Get">func</a> (\*INI) [Get](/src/target/ini.go?s=2507:2554#L102)
+``` go
 func (ini *INI) Get(section, key string) string
 ```
-Get fetches the key value in the given section. If the section or the key is not
-found an empty string is returned.
+Get fetches the key value in the given section.
+If the section or the key is not found an empty string is returned.
 
-#### func (*INI) GetComments
 
-```go
+
+
+### <a name="INI.GetComments">func</a> (\*INI) [GetComments](/src/target/ini.go?s=2857:2914#L115)
+``` go
 func (ini *INI) GetComments(section, key string) []string
 ```
-GetComments gets the comments for the given section or key. Use an empty key to
-get the section comments.
+GetComments gets the comments for the given section or key.
+Use an empty key to get the section comments.
 
-#### func (*INI) Keys
 
-```go
+
+
+### <a name="INI.Has">func</a> (\*INI) [Has](/src/target/ini.go?s=2238:2283#L93)
+``` go
+func (ini *INI) Has(section, key string) bool
+```
+Has returns whether or not the section (if the key is empty) or
+the key exists for the given section.
+
+
+
+
+### <a name="INI.Keys">func</a> (\*INI) [Keys](/src/target/ini.go?s=4632:4677#L190)
+``` go
 func (ini *INI) Keys(section string) []string
 ```
 Keys returns the list of keys for the given section.
 
-#### func (*INI) ReadFrom
 
-```go
+
+
+### <a name="INI.ReadFrom">func</a> (\*INI) [ReadFrom](/src/target/read.go?s=530:582#L12)
+``` go
 func (ini *INI) ReadFrom(r io.Reader) (int64, error)
 ```
-ReadFrom populates INI with the data read from the reader. Leading and trailing
-whitespaces for the key names are removed. Leading whitespaces for key values
-are removed. If multiple sections have the same name, by default, the last one
-is used. This can be overriden with the MergeSections option.
+ReadFrom populates Ini with the data read from the reader.
+Leading and trailing whitespaces for the key names are removed.
+Leading whitespaces for key values are removed.
+If multiple sections have the same name, by default, the last
+one is used. This can be overridden with the MergeSections option.
 
-#### func (*INI) Reset
 
-```go
+
+
+### <a name="INI.Reset">func</a> (\*INI) [Reset](/src/target/ini.go?s=1277:1300#L52)
+``` go
 func (ini *INI) Reset()
 ```
-Reset clears all sections with their associated comments and keys. Initial
-Options are retained.
+Reset clears all sections with their associated comments and keys.
+Initial Options are retained.
 
-#### func (*INI) Sections
 
-```go
+
+
+### <a name="INI.Sections">func</a> (\*INI) [Sections](/src/target/ini.go?s=4411:4446#L181)
+``` go
 func (ini *INI) Sections() []string
 ```
 Sections returns the list of defined sections, excluding the global one.
 
-#### func (*INI) Set
 
-```go
+
+
+### <a name="INI.Set">func</a> (\*INI) [Set](/src/target/ini.go?s=3295:3342#L135)
+``` go
 func (ini *INI) Set(section, key, value string)
 ```
-Set adds the key with its value to the given section. If the section does not
-exist it is created. Setting an empty key adds a newline for the next keys.
+Set adds the key with its value to the given section.
+If the section does not exist it is created.
+Setting an empty key adds a newline for the next keys.
 
-#### func (*INI) SetComments
 
-```go
+
+
+### <a name="INI.SetComments">func</a> (\*INI) [SetComments](/src/target/ini.go?s=4023:4091#L164)
+``` go
 func (ini *INI) SetComments(section, key string, comments ...string)
 ```
-SetComments sets the comments for the given section or key. Use an empty key to
-set the section comments.
+SetComments sets the comments for the given section or key.
+Use an empty key to set the section comments.
 
-#### func (*INI) WriteTo
 
-```go
+
+
+### <a name="INI.WriteTo">func</a> (\*INI) [WriteTo](/src/target/write.go?s=97:148#L1)
+``` go
 func (ini *INI) WriteTo(w io.Writer) (int64, error)
 ```
-WriteTo writes the contents of INI to the given Writer.
+WriteTo writes the contents of Ini to the given Writer.
 
-#### type Option
 
-```go
+
+
+## <a name="Option">type</a> [Option](/src/target/options.go?s=81:109#L1)
+``` go
 type Option func(*INI) error
 ```
+Option allows setting various options when creating an Ini type.
 
-Option allows setting various options when creating an INI type.
 
-#### func  CaseSensitive
 
-```go
+
+
+
+
+### <a name="CaseSensitive">func</a> [CaseSensitive](/src/target/options.go?s=396:423#L7)
+``` go
 func CaseSensitive() Option
 ```
-CaseSensitive makes section and key names case sensitive when using the Get() or
-Decode() methods.
+CaseSensitive makes section and key names case sensitive
+when using the Get() or Decode() methods.
 
-#### func  Comment
 
-```go
-func Comment(prefix rune) Option
+### <a name="Comment">func</a> [Comment](/src/target/options.go?s=173:207#L1)
+``` go
+func Comment(prefix string) Option
 ```
-Comment sets the comment character. It defaults to ';'.
+Comment sets the comment character.
+It defaults to ";".
 
-#### func  MergeSections
 
-```go
+### <a name="MergeSections">func</a> [MergeSections](/src/target/options.go?s=706:733#L17)
+``` go
 func MergeSections() Option
 ```
-MergeSections merges sections when multiple ones are defined instead of
-overwriting them, in which case the last one wins. This is only relevant when
-the INI is being initialized by ReadFrom.
+MergeSections merges sections when multiple ones are defined
+instead of overwriting them, in which case the last one wins.
+This is only relevant when the Ini is being initialized by ReadFrom.
 
-#### func  SliceSeparator
 
-```go
+### <a name="MergeSectionsWithComments">func</a> [MergeSectionsWithComments](/src/target/options.go?s=922:961#L26)
+``` go
+func MergeSectionsWithComments() Option
+```
+MergeSectionsWithComments is equivalent to MergeSections but all the
+section comments merged.
+
+
+### <a name="MergeSectionsWithLastComments">func</a> [MergeSectionsWithLastComments](/src/target/options.go?s=1197:1240#L35)
+``` go
+func MergeSectionsWithLastComments() Option
+```
+MergeSectionsWithLastComments is equivalent to MergeSections but the
+section comments are set to the ones from the last section.
+
+
+### <a name="SliceSeparator">func</a> [SliceSeparator](/src/target/options.go?s=1475:1513#L44)
+``` go
 func SliceSeparator(sep string) Option
 ```
-SliceSeparator defines the separator used to split strings when decoding into a
-slice or encoding a slice into a key value.
+SliceSeparator defines the separator used to split strings when
+decoding into a slice or encoding a slice into a key value.
+
+
+
+
+
+
+
+
+
+- - -
+Generated by [godoc2md](http://godoc.org/github.com/davecheney/godoc2md)
