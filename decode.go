@@ -84,8 +84,7 @@ func (ini *INI) decode(defaultSection string, v interface{}) error {
 				reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 				reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 				reflect.Float32, reflect.Float64,
-				reflect.String,
-				reflect.Slice:
+				reflect.String, reflect.Slice, reflect.Array:
 			case reflect.Struct:
 				section, key, _ := getTagInfo(field)
 				if key == "" {
@@ -184,6 +183,23 @@ func (ini *INI) decodeValue(value, valuePtr reflect.Value, isTexter bool, keyVal
 		value.SetFloat(v)
 	case reflect.String:
 		value.SetString(*keyValuePtr)
+	case reflect.Array:
+		var keyValues []string
+		if *keyValuePtr != "" {
+			keyValues = strings.Split(*keyValuePtr, ini.sliceSep)
+		}
+		// Take the smallest of the container and the input.
+		n := value.Len()
+		if m := len(keyValues); m < n {
+			n = m
+		}
+		for i := 0; i < n; i++ {
+			v := value.Index(i)
+			err := ini.decodeValue(v, v.Addr(), isTexter, &keyValues[i])
+			if err != nil {
+				return err
+			}
+		}
 	case reflect.Slice:
 		var keyValues []string
 		if *keyValuePtr != "" {

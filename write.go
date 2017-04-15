@@ -38,7 +38,7 @@ func (ini *INI) WriteTo(w io.Writer) (int64, error) {
 func (ini *INI) printComments(w io.Writer, comments []string) (int, error) {
 	var written int
 	for _, s := range comments {
-		n, err := fmt.Fprintf(w, "%c%s\n", ini.comment, s)
+		n, err := fmt.Fprintf(w, "%s%s\n", ini.comment, s)
 		written += n
 		if err != nil {
 			return written, err

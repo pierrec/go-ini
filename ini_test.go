@@ -135,6 +135,29 @@ func TestSetGet(t *testing.T) {
 	}
 }
 
+func TestHas(t *testing.T) {
+	conf, _ := ini.New()
+
+	// Add a new section and key.
+	conf.Set("sec1", "k1", "v1")
+
+	// The new section should be added.
+	if got, want := conf.Has("sec1", ""), true; got != want {
+		t.Fatalf("got %v; want %v", got, want)
+	}
+	if got, want := conf.Has("sec2", ""), false; got != want {
+		t.Fatalf("got %v; want %v", got, want)
+	}
+
+	// The new key should be added.
+	if got, want := conf.Has("sec1", "k1"), true; got != want {
+		t.Fatalf("got %v; want %v", got, want)
+	}
+	if got, want := conf.Has("sec2", "k2"), false; got != want {
+		t.Fatalf("got %v; want %v", got, want)
+	}
+}
+
 func TestDel(t *testing.T) {
 	conf, _ := ini.New()
 
@@ -281,13 +304,14 @@ func TestInvalidDecode(t *testing.T) {
 
 	// Invalid values for the expected types.
 	type config struct {
-		A int           `ini:"idx"`
-		B bool          `ini:"flag"`
-		C time.Duration `ini:"dur"`
-		D time.Time     `ini:"date"`
-		E uint32        `ini:"hash"`
-		F float64       `ini:"v"`
-		S []int         `ini:"lst"`
+		A   int           `ini:"idx"`
+		B   bool          `ini:"flag"`
+		C   time.Duration `ini:"dur"`
+		D   time.Time     `ini:"date"`
+		E   uint32        `ini:"hash"`
+		F   float64       `ini:"v"`
+		S   []int         `ini:"lst"`
+		ARR [2]int        `ini:"arr"`
 	}
 
 	buf := bytes.NewBuffer(nil)
@@ -299,6 +323,7 @@ func TestInvalidDecode(t *testing.T) {
 		"hash=xyz",
 		"v=xyz",
 		"lst=a,b",
+		"arr=aa,bb,cc",
 	} {
 		buf.Reset()
 		buf.WriteString(data)
@@ -324,17 +349,21 @@ func TestEncode(t *testing.T) {
 		F     uint32        `ini:"hash,sec3"`
 		G     float64       `ini:"v,sec3"`
 		H     int
+		S     []int
+		ARR   [2]int
 	}
 
 	buf := new(bytes.Buffer)
 	date, _ := time.Parse("2006-Jan-02", "2013-Feb-03")
-	conf := &config{1, nil, 0, 0, 123, "abc", true, time.Second, date, 0xC4F3, 1.234, 0}
+	conf := &config{1, nil, 0, 0, 123, "abc", true, time.Second, date, 0xC4F3, 1.234, 0, []int{1, 2, 3}, [2]int{11, 22}}
 
 	if err := ini.Encode(buf, conf); err != nil {
 		t.Fatal(err)
 	}
 
-	want := `H = 0
+	want := `H   = 0
+S   = 1,2,3
+ARR = 11,22
 
 [sec1]
 idx = 123
@@ -372,6 +401,8 @@ func TestDecode(t *testing.T) {
 		G     float64       `ini:"v,sec3"`
 		S     []int         `ini:"lst,sec3"`
 		SS    []string      `ini:"slst,sec3"`
+		ARR   [2]int        `ini:"a1,arr"`
+		ARR2  [3]string     `ini:"a2,arr"`
 	}
 
 	data := `
@@ -390,6 +421,9 @@ hash=0xC4F3
 v=1.234
 lst=1,2,3
 slst=a,b,c
+[arr]
+a1=1,2
+a2=x,y
 `
 
 	for _, ending := range []string{"\n", "\r\n"} {
@@ -404,7 +438,7 @@ slst=a,b,c
 		date, _ := time.Parse(time.RFC3339, "2006-01-02T15:04:05Z")
 		got, want := conf, config{0, nil, 0, 0, 123, "a\"b\"c", "a\"bc", "",
 			"abc", true, time.Second, date, 0xC4F3, 1.234,
-			[]int{1, 2, 3}, []string{"a", "b", "c"}}
+			[]int{1, 2, 3}, []string{"a", "b", "c"}, [2]int{1, 2}, [3]string{"x", "y", ""}}
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("got %v; want %v", got, want)
 		}
@@ -748,7 +782,7 @@ B = 2
 
 	ini.DefaultOptions = []ini.Option{
 		ini.CaseSensitive(),
-		ini.Comment('#'),
+		ini.Comment("#"),
 		ini.MergeSections(),
 		ini.SliceSeparator("_"),
 	}
@@ -879,7 +913,7 @@ k1 = xyz
 
 	buf := bytes.NewBufferString(data)
 	output := bytes.NewBuffer(nil)
-	conf, _ := ini.New(ini.Comment('#'))
+	conf, _ := ini.New(ini.Comment("#"))
 
 	if _, err := conf.ReadFrom(buf); err != nil {
 		t.Fatal(err)
@@ -1001,7 +1035,7 @@ kk = vv
 }
 
 func TestReset(t *testing.T) {
-	conf, _ := ini.New(ini.CaseSensitive(), ini.Comment('#'))
+	conf, _ := ini.New(ini.CaseSensitive(), ini.Comment("#"))
 
 	conf.Set("", "key1", "value1")
 	conf.Set("sectionA", "key1", "value1")
@@ -1017,7 +1051,7 @@ func TestReset(t *testing.T) {
 }
 
 func TestMergingSectionsWithComments(t *testing.T) {
-	conf, _ := ini.New(ini.Comment('#'), ini.MergeSectionsWithComments())
+	conf, _ := ini.New(ini.Comment("#"), ini.MergeSectionsWithComments())
 	conf.SetComments("", "", " global comment")
 	conf.Set("", "key1", "value1")
 	conf.SetComments("sectionA", "", " section comment")
@@ -1061,7 +1095,7 @@ keyA2 = 2
 }
 
 func TestMergingSectionsWithLastComments(t *testing.T) {
-	conf, _ := ini.New(ini.Comment('#'), ini.MergeSectionsWithLastComments())
+	conf, _ := ini.New(ini.Comment("#"), ini.MergeSectionsWithLastComments())
 	conf.SetComments("", "", " global comment")
 	conf.Set("", "key1", "value1")
 	conf.SetComments("sectionA", "", " section comment")

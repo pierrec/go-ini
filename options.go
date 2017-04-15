@@ -4,10 +4,10 @@ package ini
 type Option func(*INI) error
 
 // Comment sets the comment character.
-// It defaults to ';'.
-func Comment(prefix rune) Option {
+// It defaults to ";".
+func Comment(prefix string) Option {
 	return func(ini *INI) error {
-		ini.comment = prefix
+		ini.comment = []byte(prefix)
 		return nil
 	}
 }

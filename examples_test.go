@@ -133,10 +133,10 @@ port = 80
 }
 
 func ExampleIni_WriteTo() {
-	cini, _ := ini.New(ini.Comment('#'))
-	cini.SetComments("", "", " Main")
+	cini, _ := ini.New(ini.Comment("# "))
+	cini.SetComments("", "", "Main")
 	cini.Set("", "id", "ID2")
-	cini.SetComments("server", "", " Server definition")
+	cini.SetComments("server", "", "Server definition")
 	cini.Set("server", "host", "localhost")
 	cini.Set("server", "port", "80")
 

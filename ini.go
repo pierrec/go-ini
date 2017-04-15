@@ -7,7 +7,7 @@ import (
 
 const (
 	// DefaultComment is the default value used to prefix comments.
-	DefaultComment = ';'
+	DefaultComment = ";"
 	// DefaultSliceSeparator is the default slice separator used to decode and encode slices.
 	DefaultSliceSeparator = ","
 )
@@ -26,7 +26,7 @@ var _ io.WriterTo = (*INI)(nil)
 
 // INI represents the content of an ini source.
 type INI struct {
-	comment         rune
+	comment         []byte
 	isCaseSensitive bool
 	mergeSections   int
 	sliceSep        string
@@ -47,8 +47,8 @@ func New(options ...Option) (*INI, error) {
 		}
 	}
 
-	if ini.comment == 0 {
-		ini.comment = DefaultComment
+	if len(ini.comment) == 0 {
+		ini.comment = []byte(DefaultComment)
 	}
 	if ini.sliceSep == "" {
 		ini.sliceSep = DefaultSliceSeparator
@@ -96,6 +96,15 @@ func (ini *INI) rmSection(section string) bool {
 		}
 	}
 	return false
+}
+
+// Has returns whether or not the section (if the key is empty) or
+// the key exists for the given section.
+func (ini *INI) Has(section, key string) bool {
+	if key == "" {
+		return ini.getSection(section) != nil
+	}
+	return ini.get(section, key) != nil
 }
 
 // Get fetches the key value in the given section.

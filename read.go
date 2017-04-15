@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"unicode"
-	"unicode/utf8"
 )
 
 var (
@@ -114,7 +113,7 @@ func (ini *INI) ReadFrom(r io.Reader) (int64, error) {
 			continue
 		}
 
-		if first, _ := utf8.DecodeRune(line); ini.comment == first {
+		if bytes.HasPrefix(line, ini.comment) {
 			// Comment.
 			comments = append(comments, string(line[1:]))
 			continue

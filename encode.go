@@ -64,7 +64,7 @@ func (ini *INI) encode(defaultSection string, v interface{}) error {
 				reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 				reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 				reflect.Float32, reflect.Float64,
-				reflect.String, reflect.Slice:
+				reflect.String, reflect.Slice, reflect.Array:
 			case reflect.Struct:
 				section, key, _ := getTagInfo(field)
 				if key == "" {
@@ -102,7 +102,7 @@ func (ini *INI) encode(defaultSection string, v interface{}) error {
 			}
 			value = vals[0]
 			keyValue = string(value.Interface().([]byte))
-		} else if fieldKind == reflect.Slice {
+		} else if fieldKind == reflect.Slice || fieldKind == reflect.Array {
 			n := value.Len()
 			keyValues := make([]string, n)
 			for i := 0; i < n; i++ {
