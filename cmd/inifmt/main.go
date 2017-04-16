@@ -9,7 +9,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"unicode/utf8"
 
 	ini "github.com/pierrec/go-ini"
 )
@@ -54,8 +53,8 @@ func main() {
 
 	var options []ini.Option
 	options = append(options, ini.SliceSeparator(sliceSep))
-	if first, n := utf8.DecodeRune([]byte(comment)); n > 0 {
-		options = append(options, ini.Comment(first))
+	if comment != "" {
+		options = append(options, ini.Comment(comment))
 	}
 	if sensitive {
 		options = append(options, ini.CaseSensitive())
