@@ -2,6 +2,7 @@ package ini
 
 import (
 	"encoding"
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"io"
@@ -9,11 +10,13 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 var (
 	errDecodeNoPtr    = errors.New("ini: decode value must be a pointer")
 	errDecodeNoStruct = errors.New("ini: decode value must be a pointer to a struct")
+	errInvalidMapKey  = errors.New("ini: invalid map key")
 )
 
 // Special struct field types.
@@ -84,7 +87,7 @@ func (ini *INI) decode(defaultSection string, v interface{}) error {
 				reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 				reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 				reflect.Float32, reflect.Float64,
-				reflect.String, reflect.Slice, reflect.Array:
+				reflect.String, reflect.Slice, reflect.Array, reflect.Map:
 			case reflect.Struct:
 				section, key, _ := getTagInfo(field)
 				if key == "" {
@@ -123,7 +126,7 @@ func (ini *INI) decode(defaultSection string, v interface{}) error {
 		// The value was found. Try to convert it to the field type.
 		// Special case: texter.
 		// NB. time.Time implements encoding.TextUnmarshaler.
-		if err := ini.decodeValue(value, valuePtr, isTexter, keyValuePtr); err != nil {
+		if err := ini.decodeValue(value, valuePtr, isTexter, *keyValuePtr); err != nil {
 			return fmt.Errorf("ini: decode: %s.%s: %v", section, key, err)
 		}
 	}
@@ -132,9 +135,9 @@ func (ini *INI) decode(defaultSection string, v interface{}) error {
 }
 
 // decodeValue sets value to the keyValuePtr value.
-func (ini *INI) decodeValue(value, valuePtr reflect.Value, isTexter bool, keyValuePtr *string) error {
+func (ini *INI) decodeValue(value, valuePtr reflect.Value, isTexter bool, keyValue string) error {
 	if isTexter {
-		bts := []byte(*keyValuePtr)
+		bts := []byte(keyValue)
 		txtValue := reflect.ValueOf(bts)
 		args := []reflect.Value{txtValue}
 		vals := valuePtr.MethodByName("UnmarshalText").Call(args)
@@ -148,7 +151,7 @@ func (ini *INI) decodeValue(value, valuePtr reflect.Value, isTexter bool, keyVal
 	valueType := value.Type()
 	switch valueType {
 	case durationType:
-		d, err := time.ParseDuration(*keyValuePtr)
+		d, err := time.ParseDuration(keyValue)
 		if err != nil {
 			return err
 		}
@@ -158,35 +161,35 @@ func (ini *INI) decodeValue(value, valuePtr reflect.Value, isTexter bool, keyVal
 
 	switch valueType.Kind() {
 	case reflect.Bool:
-		v, err := strconv.ParseBool(*keyValuePtr)
+		v, err := strconv.ParseBool(keyValue)
 		if err != nil {
 			return err
 		}
 		value.SetBool(v)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		v, err := strconv.ParseInt(*keyValuePtr, 0, 64)
+		v, err := strconv.ParseInt(keyValue, 0, 64)
 		if err != nil {
 			return err
 		}
 		value.SetInt(v)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		v, err := strconv.ParseUint(*keyValuePtr, 0, 64)
+		v, err := strconv.ParseUint(keyValue, 0, 64)
 		if err != nil {
 			return err
 		}
 		value.SetUint(v)
 	case reflect.Float32, reflect.Float64:
-		v, err := strconv.ParseFloat(*keyValuePtr, 64)
+		v, err := strconv.ParseFloat(keyValue, 64)
 		if err != nil {
 			return err
 		}
 		value.SetFloat(v)
 	case reflect.String:
-		value.SetString(*keyValuePtr)
+		value.SetString(keyValue)
 	case reflect.Array:
 		var keyValues []string
-		if *keyValuePtr != "" {
-			keyValues = strings.Split(*keyValuePtr, ini.sliceSep)
+		if keyValue != "" {
+			keyValues = strings.Split(keyValue, ini.sliceSep)
 		}
 		// Take the smallest of the container and the input.
 		n := value.Len()
@@ -195,28 +198,55 @@ func (ini *INI) decodeValue(value, valuePtr reflect.Value, isTexter bool, keyVal
 		}
 		for i := 0; i < n; i++ {
 			v := value.Index(i)
-			err := ini.decodeValue(v, v.Addr(), isTexter, &keyValues[i])
+			err := ini.decodeValue(v, v.Addr(), isTexter, keyValues[i])
 			if err != nil {
 				return err
 			}
 		}
 	case reflect.Slice:
-		var keyValues []string
-		if *keyValuePtr != "" {
-			keyValues = strings.Split(*keyValuePtr, ini.sliceSep)
+		keyValues, err := readCSV(keyValue, ini.sliceSep)
+		if err != nil {
+			return err
 		}
 		elem := valueType.Elem()
 		sliceValues := reflect.MakeSlice(valueType, 0, len(keyValues))
-		for i := range keyValues {
+		for i, kv := range keyValues {
 			v := reflect.New(elem).Elem()
 			_, isTexter = getUnmarshalTexter(v)
-			err := ini.decodeValue(v, v.Addr(), isTexter, &keyValues[i])
+			err := ini.decodeValue(v, v.Addr(), isTexter, kv)
 			if err != nil {
 				return fmt.Errorf("%v at index %d", err, i)
 			}
 			sliceValues = reflect.Append(sliceValues, v)
 		}
 		value.Set(sliceValues)
+	case reflect.Map:
+		keyValues, err := readCSV(keyValue, ini.sliceSep)
+		if err != nil {
+			return err
+		}
+		vType := value.Type()
+		keyElem := vType.Key()
+		elemElem := vType.Elem()
+		mapValues := reflect.MakeMap(value.Type())
+		for _, kv := range keyValues {
+			data := strings.SplitN(kv, ini.mapkeySep, 2)
+			if len(data) != 2 {
+				return errInvalidMapKey
+			}
+			key := reflect.New(keyElem).Elem()
+			_, isTexter = getUnmarshalTexter(key)
+			if err := ini.decodeValue(key, key.Addr(), isTexter, data[0]); err != nil {
+				return err
+			}
+			v := reflect.New(elemElem).Elem()
+			_, isTexter = getUnmarshalTexter(v)
+			if err := ini.decodeValue(v, v.Addr(), isTexter, data[1]); err != nil {
+				return err
+			}
+			mapValues.SetMapIndex(key, v)
+		}
+		value.Set(mapValues)
 	}
 	return nil
 }
@@ -229,4 +259,16 @@ func getUnmarshalTexter(v reflect.Value) (reflect.Value, bool) {
 		p = v.Addr()
 	}
 	return p, p.Type().Implements(textUnmarshalType)
+}
+
+// readCSV converts the csv input string into a slice.
+func readCSV(s string, sep string) ([]string, error) {
+	if s == "" {
+		return nil, nil
+	}
+	buf := strings.NewReader(s)
+	r := csv.NewReader(buf)
+	first, _ := utf8.DecodeRuneInString(sep)
+	r.Comma = first
+	return r.Read()
 }

@@ -64,7 +64,7 @@ func (ini *INI) encode(defaultSection string, v interface{}) error {
 				reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 				reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 				reflect.Float32, reflect.Float64,
-				reflect.String, reflect.Slice, reflect.Array:
+				reflect.String, reflect.Slice, reflect.Array, reflect.Map:
 			case reflect.Struct:
 				section, key, _ := getTagInfo(field)
 				if key == "" {
@@ -94,24 +94,9 @@ func (ini *INI) encode(defaultSection string, v interface{}) error {
 			section = defaultSection
 		}
 
-		var keyValue string
-		if isTexter {
-			vals := valuePtr.MethodByName("MarshalText").Call(nil)
-			if v := vals[1]; !v.IsNil() {
-				return fmt.Errorf("ini: encode: %s.%s: %v", section, key, v.Interface())
-			}
-			value = vals[0]
-			keyValue = string(value.Interface().([]byte))
-		} else if fieldKind == reflect.Slice || fieldKind == reflect.Array {
-			n := value.Len()
-			keyValues := make([]string, n)
-			for i := 0; i < n; i++ {
-				v := value.Index(i)
-				keyValues[i] = fmt.Sprintf("%v", v.Interface())
-			}
-			keyValue = strings.Join(keyValues, ini.sliceSep)
-		} else {
-			keyValue = fmt.Sprintf("%v", value.Interface())
+		keyValue, err := ini.encodeValue(value, valuePtr, isTexter)
+		if err != nil {
+			return fmt.Errorf("ini: encode: %s.%s: %v", section, key, err)
 		}
 		ini.Set(section, key, keyValue)
 
@@ -121,6 +106,50 @@ func (ini *INI) encode(defaultSection string, v interface{}) error {
 	}
 
 	return nil
+}
+
+func (ini *INI) encodeValue(value, valuePtr reflect.Value, isTexter bool) (string, error) {
+	if isTexter {
+		vals := valuePtr.MethodByName("MarshalText").Call(nil)
+		if v := vals[1]; !v.IsNil() {
+			return "", v.Interface().(error)
+		}
+		value = vals[0]
+		return string(value.Interface().([]byte)), nil
+	}
+
+	fieldKind := value.Type().Kind()
+	switch fieldKind {
+	case reflect.Slice, reflect.Array:
+		n := value.Len()
+		keyValues := make([]string, n)
+		for i := 0; i < n; i++ {
+			v := value.Index(i)
+			w, isTexter := getMarshalTexter(v)
+			s, err := ini.encodeValue(v, w, isTexter)
+			if err != nil {
+				return "", err
+			}
+			keyValues[i] = s
+		}
+		//TODO write csv record
+		return strings.Join(keyValues, ini.sliceSep), nil
+	case reflect.Map:
+		keys := value.MapKeys()
+		keyValues := make([]string, len(keys))
+		for i, key := range keys {
+			v := value.MapIndex(key)
+			w, isTexter := getMarshalTexter(v)
+			s, err := ini.encodeValue(v, w, isTexter)
+			if err != nil {
+				return "", err
+			}
+			keyValues[i] = fmt.Sprintf("%v%s%s", key.Interface(), ini.mapkeySep, s)
+		}
+		//TODO write csv record
+		return strings.Join(keyValues, ini.sliceSep), nil
+	}
+	return fmt.Sprintf("%v", value.Interface()), nil
 }
 
 // Figure out the key and section to look for in Ini.
@@ -160,7 +189,7 @@ func getTagInfo(field reflect.StructField) (section, key string, isLastKey bool)
 // implements the TextMarshaler interface.
 func getMarshalTexter(v reflect.Value) (reflect.Value, bool) {
 	p := v
-	if v.Kind() != reflect.Ptr {
+	if v.Kind() != reflect.Ptr && v.CanAddr() {
 		p = v.Addr()
 	}
 	return p, p.Type().Implements(textMarshalType)

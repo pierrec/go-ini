@@ -10,6 +10,8 @@ const (
 	DefaultComment = ";"
 	// DefaultSliceSeparator is the default slice separator used to decode and encode slices.
 	DefaultSliceSeparator = ","
+	// DefaultMapKeySeparator is the default map key separator used to decode and encode slices.
+	DefaultMapKeySeparator = ":"
 )
 
 // DefaultOptions lists the Options for the Encode and Decode functions to use.
@@ -30,6 +32,7 @@ type INI struct {
 	isCaseSensitive bool
 	mergeSections   int
 	sliceSep        string
+	mapkeySep       string
 
 	// This is the global section, without a name.
 	global iniSection
@@ -52,6 +55,9 @@ func New(options ...Option) (*INI, error) {
 	}
 	if ini.sliceSep == "" {
 		ini.sliceSep = DefaultSliceSeparator
+	}
+	if ini.mapkeySep == "" {
+		ini.mapkeySep = DefaultMapKeySeparator
 	}
 
 	return ini, nil
