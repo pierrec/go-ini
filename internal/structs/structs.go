@@ -259,10 +259,8 @@ func fieldsOf(v interface{}, tagid string) (res []*StructField) {
 		case "-":
 			continue
 		default:
-			if len(v) == 1 {
-				// Set the field name according to the struct tag.
-				fname = tagval
-			}
+			// Set the field name according to the struct tag.
+			fname = v[0]
 		}
 
 		var fs *StructStruct
