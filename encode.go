@@ -42,10 +42,6 @@ func (ini *INI) encode(defaultSection string, v interface{}) error {
 
 	for _, field := range root.Fields() {
 		section, key, isLastKey := getTagInfo(field.Tag(), field.Name())
-		if key == "" {
-			// Omit the field.
-			continue
-		}
 		if section == "" {
 			section = defaultSection
 		}
@@ -80,7 +76,6 @@ func (ini *INI) encode(defaultSection string, v interface{}) error {
 }
 
 // Figure out the key and section to look for in Ini.
-// If the field is to be ignored, the returned key name is empty.
 // Otherwise, if it is not specified, the field name is used as the key.
 // A struct tag may contain 3 entries:
 //  - the key name (defaults to the field name)
@@ -90,9 +85,6 @@ func getTagInfo(tags reflect.StructTag, defaultKey string) (section, key string,
 	tag := tags.Get(iniTagID)
 	if tag == "" {
 		key = defaultKey
-		return
-	}
-	if tag[0] == '-' {
 		return
 	}
 	lst := strings.Split(tag, ",")

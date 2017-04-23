@@ -62,10 +62,6 @@ func (ini *INI) decode(defaultSection string, v interface{}) error {
 
 	for _, field := range root.Fields() {
 		section, key, _ := getTagInfo(field.Tag(), field.Name())
-		if key == "" {
-			// Omit the field.
-			continue
-		}
 		if section == "" {
 			section = defaultSection
 		}

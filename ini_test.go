@@ -553,11 +553,15 @@ func (p *password) UnmarshalText(buf []byte) error {
 func TestTexter(t *testing.T) {
 	// The MarshalText interface should be applied.
 	// Even to embedded structs.
-	type config struct {
+	type Skip struct { // Only the first level of embedded types is considered.
 		Tuser
 	}
+	type config struct {
+		Tuser
+		Skip
+	}
 
-	conf := config{Tuser{"secret"}}
+	conf := config{Tuser: Tuser{"secret"}}
 	buf := bytes.NewBuffer(nil)
 
 	// The password should be encoded using MarshalText.
