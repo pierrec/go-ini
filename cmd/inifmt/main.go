@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"unicode/utf8"
 
 	ini "github.com/pierrec/go-ini"
 )
@@ -52,7 +53,8 @@ func main() {
 	}
 
 	var options []ini.Option
-	options = append(options, ini.SliceSeparator(sliceSep))
+	sep, _ := utf8.DecodeRuneInString(sliceSep)
+	options = append(options, ini.SliceSeparator(sep))
 	if comment != "" {
 		options = append(options, ini.Comment(comment))
 	}

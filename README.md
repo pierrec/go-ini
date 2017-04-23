@@ -1,7 +1,7 @@
 
 
 # ini
-`import "github.com/pierrec/go-ini"`
+`import "."`
 
 * [Overview](#pkg-overview)
 * [Index](#pkg-index)
@@ -63,10 +63,11 @@ If a key name is '-' then the struct field is ignored.
 * [type Option](#Option)
   * [func CaseSensitive() Option](#CaseSensitive)
   * [func Comment(prefix string) Option](#Comment)
+  * [func MapKeySeparator(sep rune) Option](#MapKeySeparator)
   * [func MergeSections() Option](#MergeSections)
   * [func MergeSectionsWithComments() Option](#MergeSectionsWithComments)
   * [func MergeSectionsWithLastComments() Option](#MergeSectionsWithLastComments)
-  * [func SliceSeparator(sep string) Option](#SliceSeparator)
+  * [func SliceSeparator(sep rune) Option](#SliceSeparator)
 
 #### <a name="pkg-examples">Examples</a>
 * [Package](#example_)
@@ -74,7 +75,7 @@ If a key name is '-' then the struct field is ignored.
 * [Encode](#example_Encode)
 
 #### <a name="pkg-files">Package files</a>
-[decode.go](/src/github.com/pierrec/go-ini/decode.go) [doc.go](/src/github.com/pierrec/go-ini/doc.go) [encode.go](/src/github.com/pierrec/go-ini/encode.go) [ini.go](/src/github.com/pierrec/go-ini/ini.go) [options.go](/src/github.com/pierrec/go-ini/options.go) [read.go](/src/github.com/pierrec/go-ini/read.go) [section.go](/src/github.com/pierrec/go-ini/section.go) [write.go](/src/github.com/pierrec/go-ini/write.go) 
+[decode.go](/src/target/decode.go) [doc.go](/src/target/doc.go) [encode.go](/src/target/encode.go) [ini.go](/src/target/ini.go) [options.go](/src/target/options.go) [read.go](/src/target/read.go) [section.go](/src/target/section.go) [write.go](/src/target/write.go) 
 
 
 ## <a name="pkg-constants">Constants</a>
@@ -83,7 +84,9 @@ const (
     // DefaultComment is the default value used to prefix comments.
     DefaultComment = ";"
     // DefaultSliceSeparator is the default slice separator used to decode and encode slices.
-    DefaultSliceSeparator = ","
+    DefaultSliceSeparator = ','
+    // DefaultMapKeySeparator is the default map key separator used to decode and encode slices.
+    DefaultMapKeySeparator = ':'
 )
 ```
 
@@ -95,7 +98,7 @@ DefaultOptions lists the Options for the Encode and Decode functions to use.
 
 
 
-## <a name="Decode">func</a> [Decode](/src/target/decode.go?s=596:641#L19)
+## <a name="Decode">func</a> [Decode](/src/target/decode.go?s=677:722#L20)
 ``` go
 func Decode(r io.Reader, v interface{}) error
 ```
@@ -105,7 +108,7 @@ See Ini.Decode() for more information.
 
 
 
-## <a name="Encode">func</a> [Encode](/src/target/encode.go?s=286:331#L7)
+## <a name="Encode">func</a> [Encode](/src/target/encode.go?s=333:378#L9)
 ``` go
 func Encode(w io.Writer, v interface{}) error
 ```
@@ -116,7 +119,7 @@ See Ini.Encode() for more information.
 
 
 
-## <a name="INI">type</a> [INI](/src/target/ini.go?s=579:802#L18)
+## <a name="INI">type</a> [INI](/src/target/ini.go?s=726:969#L21)
 ``` go
 type INI struct {
     // contains filtered or unexported fields
@@ -130,7 +133,7 @@ INI represents the content of an ini source.
 
 
 
-### <a name="New">func</a> [New](/src/target/ini.go?s=858:899#L32)
+### <a name="New">func</a> [New](/src/target/ini.go?s=1025:1066#L36)
 ``` go
 func New(options ...Option) (*INI, error)
 ```
@@ -140,7 +143,7 @@ New instantiates a new Ini type ready for parsing.
 
 
 
-### <a name="INI.Decode">func</a> (\*INI) [Decode](/src/target/decode.go?s=1304:1347#L42)
+### <a name="INI.Decode">func</a> (\*INI) [Decode](/src/target/decode.go?s=1385:1428#L43)
 ``` go
 func (ini *INI) Decode(v interface{}) error
 ```
@@ -162,7 +165,7 @@ Supported types for the struct fields are:
 
 
 
-### <a name="INI.Del">func</a> (\*INI) [Del](/src/target/ini.go?s=5035:5080#L209)
+### <a name="INI.Del">func</a> (\*INI) [Del](/src/target/ini.go?s=5270:5315#L216)
 ``` go
 func (ini *INI) Del(section, key string) bool
 ```
@@ -172,7 +175,7 @@ Set the key to an empty string to remove a section.
 
 
 
-### <a name="INI.Encode">func</a> (\*INI) [Encode](/src/target/encode.go?s=608:651#L21)
+### <a name="INI.Encode">func</a> (\*INI) [Encode](/src/target/encode.go?s=655:698#L23)
 ``` go
 func (ini *INI) Encode(v interface{}) error
 ```
@@ -182,7 +185,7 @@ v must be a pointer to a struct.
 
 
 
-### <a name="INI.Get">func</a> (\*INI) [Get](/src/target/ini.go?s=2507:2554#L102)
+### <a name="INI.Get">func</a> (\*INI) [Get](/src/target/ini.go?s=2742:2789#L109)
 ``` go
 func (ini *INI) Get(section, key string) string
 ```
@@ -192,7 +195,7 @@ If the section or the key is not found an empty string is returned.
 
 
 
-### <a name="INI.GetComments">func</a> (\*INI) [GetComments](/src/target/ini.go?s=2857:2914#L115)
+### <a name="INI.GetComments">func</a> (\*INI) [GetComments](/src/target/ini.go?s=3092:3149#L122)
 ``` go
 func (ini *INI) GetComments(section, key string) []string
 ```
@@ -202,7 +205,7 @@ Use an empty key to get the section comments.
 
 
 
-### <a name="INI.Has">func</a> (\*INI) [Has](/src/target/ini.go?s=2238:2283#L93)
+### <a name="INI.Has">func</a> (\*INI) [Has](/src/target/ini.go?s=2473:2518#L100)
 ``` go
 func (ini *INI) Has(section, key string) bool
 ```
@@ -212,7 +215,7 @@ the key exists for the given section.
 
 
 
-### <a name="INI.Keys">func</a> (\*INI) [Keys](/src/target/ini.go?s=4632:4677#L190)
+### <a name="INI.Keys">func</a> (\*INI) [Keys](/src/target/ini.go?s=4867:4912#L197)
 ``` go
 func (ini *INI) Keys(section string) []string
 ```
@@ -234,7 +237,7 @@ one is used. This can be overridden with the MergeSections option.
 
 
 
-### <a name="INI.Reset">func</a> (\*INI) [Reset](/src/target/ini.go?s=1277:1300#L52)
+### <a name="INI.Reset">func</a> (\*INI) [Reset](/src/target/ini.go?s=1512:1535#L59)
 ``` go
 func (ini *INI) Reset()
 ```
@@ -244,7 +247,7 @@ Initial Options are retained.
 
 
 
-### <a name="INI.Sections">func</a> (\*INI) [Sections](/src/target/ini.go?s=4411:4446#L181)
+### <a name="INI.Sections">func</a> (\*INI) [Sections](/src/target/ini.go?s=4646:4681#L188)
 ``` go
 func (ini *INI) Sections() []string
 ```
@@ -253,7 +256,7 @@ Sections returns the list of defined sections, excluding the global one.
 
 
 
-### <a name="INI.Set">func</a> (\*INI) [Set](/src/target/ini.go?s=3295:3342#L135)
+### <a name="INI.Set">func</a> (\*INI) [Set](/src/target/ini.go?s=3530:3577#L142)
 ``` go
 func (ini *INI) Set(section, key, value string)
 ```
@@ -264,7 +267,7 @@ Setting an empty key adds a newline for the next keys.
 
 
 
-### <a name="INI.SetComments">func</a> (\*INI) [SetComments](/src/target/ini.go?s=4023:4091#L164)
+### <a name="INI.SetComments">func</a> (\*INI) [SetComments](/src/target/ini.go?s=4258:4326#L171)
 ``` go
 func (ini *INI) SetComments(section, key string, comments ...string)
 ```
@@ -311,6 +314,14 @@ Comment sets the comment character.
 It defaults to ";".
 
 
+### <a name="MapKeySeparator">func</a> [MapKeySeparator](/src/target/options.go?s=1696:1733#L53)
+``` go
+func MapKeySeparator(sep rune) Option
+```
+MapKeySeparator defines the separator used to split strings when
+decoding or encoding a map key.
+
+
 ### <a name="MergeSections">func</a> [MergeSections](/src/target/options.go?s=706:733#L17)
 ``` go
 func MergeSections() Option
@@ -336,12 +347,12 @@ MergeSectionsWithLastComments is equivalent to MergeSections but the
 section comments are set to the ones from the last section.
 
 
-### <a name="SliceSeparator">func</a> [SliceSeparator](/src/target/options.go?s=1475:1513#L44)
+### <a name="SliceSeparator">func</a> [SliceSeparator](/src/target/options.go?s=1483:1519#L44)
 ``` go
-func SliceSeparator(sep string) Option
+func SliceSeparator(sep rune) Option
 ```
 SliceSeparator defines the separator used to split strings when
-decoding into a slice or encoding a slice into a key value.
+decoding into a slice/map or encoding a slice/map into a key value.
 
 
 
