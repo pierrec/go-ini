@@ -9,15 +9,16 @@ const (
 	// DefaultComment is the default value used to prefix comments.
 	DefaultComment = ";"
 	// DefaultSliceSeparator is the default slice separator used to decode and encode slices.
-	DefaultSliceSeparator = ","
+	DefaultSliceSeparator = ','
 	// DefaultMapKeySeparator is the default map key separator used to decode and encode slices.
-	DefaultMapKeySeparator = ":"
+	DefaultMapKeySeparator = ':'
 )
 
 // DefaultOptions lists the Options for the Encode and Decode functions to use.
 var DefaultOptions []Option
 
 const (
+	iniTagID      = "ini"
 	mergeSections = 1 + iota
 	mergeSectionsWithComments
 	mergeSectionsWithLastComments
@@ -31,8 +32,8 @@ type INI struct {
 	comment         []byte
 	isCaseSensitive bool
 	mergeSections   int
-	sliceSep        string
-	mapkeySep       string
+	sliceSep        rune
+	mapkeySep       rune
 
 	// This is the global section, without a name.
 	global iniSection
@@ -53,10 +54,10 @@ func New(options ...Option) (*INI, error) {
 	if len(ini.comment) == 0 {
 		ini.comment = []byte(DefaultComment)
 	}
-	if ini.sliceSep == "" {
+	if ini.sliceSep == 0 {
 		ini.sliceSep = DefaultSliceSeparator
 	}
-	if ini.mapkeySep == "" {
+	if ini.mapkeySep == 0 {
 		ini.mapkeySep = DefaultMapKeySeparator
 	}
 

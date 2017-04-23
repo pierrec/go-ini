@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/pierrec/go-ini/internal/structs"
 )
 
 var textMarshalType = reflect.TypeOf((*encoding.TextMarshaler)(nil)).Elem()
@@ -33,59 +35,13 @@ func (ini *INI) Encode(v interface{}) error {
 }
 
 func (ini *INI) encode(defaultSection string, v interface{}) error {
-	// v must be a pointer.
-	ptr := reflect.ValueOf(v)
-	if ptr.Kind() != reflect.Ptr {
-		return errDecodeNoPtr
-	}
-	// v must be a pointer to a struct.
-	val := ptr.Elem()
-	if val.Kind() != reflect.Struct {
-		return errDecodeNoStruct
+	root, err := structs.NewStruct(v, iniTagID)
+	if err != nil {
+		return err
 	}
 
-	// Make sure to convert the value to its interface
-	// otherwise TypeOf will look at the reflect.Value itself!
-	vType := reflect.TypeOf(val.Interface())
-	for i, n := 0, vType.NumField(); i < n; i++ {
-		value := val.Field(i)
-		if !value.CanSet() {
-			// Cannot set the field, maybe unexported.
-			continue
-		}
-		field := vType.Field(i)
-		fieldKind := field.Type.Kind()
-
-		// If the field implements encoding.TextMarshaler, it prevails.
-		valuePtr, isTexter := getMarshalTexter(value)
-		if !isTexter {
-			switch fieldKind {
-			case reflect.Bool,
-				reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-				reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-				reflect.Float32, reflect.Float64,
-				reflect.String, reflect.Slice, reflect.Array, reflect.Map:
-			case reflect.Struct:
-				section, key, _ := getTagInfo(field)
-				if key == "" {
-					// Omit the field.
-					continue
-				}
-				if section == "" && field.Anonymous {
-					// If embedded, use the field name as the default section name.
-					section = field.Name
-				}
-				err := ini.encode(section, valuePtr.Interface())
-				if err != nil {
-					return err
-				}
-				continue
-			default:
-				continue
-			}
-		}
-
-		section, key, isLastKey := getTagInfo(field)
+	for _, field := range root.Fields() {
+		section, key, isLastKey := getTagInfo(field.Tag(), field.Name())
 		if key == "" {
 			// Omit the field.
 			continue
@@ -94,10 +50,25 @@ func (ini *INI) encode(defaultSection string, v interface{}) error {
 			section = defaultSection
 		}
 
-		keyValue, err := ini.encodeValue(value, valuePtr, isTexter)
+		if emb := field.Embedded(); emb != nil {
+			if defaultSection != "" {
+				// Only process the first level of embedded types.
+				continue
+			}
+			if section == "" {
+				section = field.Name()
+			}
+			if err := ini.encode(section, emb); err != nil {
+				return fmt.Errorf("ini: encode: %s.%s: %v", section, key, err)
+			}
+			continue
+		}
+
+		mvalue, err := structs.MarshalValue(field.Value(), ini.sliceSep, ini.mapkeySep)
 		if err != nil {
 			return fmt.Errorf("ini: encode: %s.%s: %v", section, key, err)
 		}
+		keyValue := fmt.Sprintf("%v", mvalue)
 		ini.Set(section, key, keyValue)
 
 		if isLastKey {
@@ -108,50 +79,6 @@ func (ini *INI) encode(defaultSection string, v interface{}) error {
 	return nil
 }
 
-func (ini *INI) encodeValue(value, valuePtr reflect.Value, isTexter bool) (string, error) {
-	if isTexter {
-		vals := valuePtr.MethodByName("MarshalText").Call(nil)
-		if v := vals[1]; !v.IsNil() {
-			return "", v.Interface().(error)
-		}
-		value = vals[0]
-		return string(value.Interface().([]byte)), nil
-	}
-
-	fieldKind := value.Type().Kind()
-	switch fieldKind {
-	case reflect.Slice, reflect.Array:
-		n := value.Len()
-		keyValues := make([]string, n)
-		for i := 0; i < n; i++ {
-			v := value.Index(i)
-			w, isTexter := getMarshalTexter(v)
-			s, err := ini.encodeValue(v, w, isTexter)
-			if err != nil {
-				return "", err
-			}
-			keyValues[i] = s
-		}
-		//TODO write csv record
-		return strings.Join(keyValues, ini.sliceSep), nil
-	case reflect.Map:
-		keys := value.MapKeys()
-		keyValues := make([]string, len(keys))
-		for i, key := range keys {
-			v := value.MapIndex(key)
-			w, isTexter := getMarshalTexter(v)
-			s, err := ini.encodeValue(v, w, isTexter)
-			if err != nil {
-				return "", err
-			}
-			keyValues[i] = fmt.Sprintf("%v%s%s", key.Interface(), ini.mapkeySep, s)
-		}
-		//TODO write csv record
-		return strings.Join(keyValues, ini.sliceSep), nil
-	}
-	return fmt.Sprintf("%v", value.Interface()), nil
-}
-
 // Figure out the key and section to look for in Ini.
 // If the field is to be ignored, the returned key name is empty.
 // Otherwise, if it is not specified, the field name is used as the key.
@@ -159,10 +86,10 @@ func (ini *INI) encodeValue(value, valuePtr reflect.Value, isTexter bool) (strin
 //  - the key name (defaults to the field name)
 //  - the section name (defaults to the global section)
 //  - whether the key is the last of a block, which introduces a newline
-func getTagInfo(field reflect.StructField) (section, key string, isLastKey bool) {
-	tag := field.Tag.Get("ini")
+func getTagInfo(tags reflect.StructTag, defaultKey string) (section, key string, isLastKey bool) {
+	tag := tags.Get(iniTagID)
 	if tag == "" {
-		key = field.Name
+		key = defaultKey
 		return
 	}
 	if tag[0] == '-' {
@@ -173,7 +100,7 @@ func getTagInfo(field reflect.StructField) (section, key string, isLastKey bool)
 	if n > 0 {
 		key = lst[0]
 		if key == "" {
-			key = field.Name
+			key = defaultKey
 		}
 	}
 	if n > 1 {
@@ -183,14 +110,4 @@ func getTagInfo(field reflect.StructField) (section, key string, isLastKey bool)
 		isLastKey, _ = strconv.ParseBool(lst[2])
 	}
 	return
-}
-
-// getMarshalTexter returns the pointer to the Value and whether it
-// implements the TextMarshaler interface.
-func getMarshalTexter(v reflect.Value) (reflect.Value, bool) {
-	p := v
-	if v.Kind() != reflect.Ptr && v.CanAddr() {
-		p = v.Addr()
-	}
-	return p, p.Type().Implements(textMarshalType)
 }

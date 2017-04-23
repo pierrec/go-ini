@@ -2,15 +2,13 @@ package ini
 
 import (
 	"encoding"
-	"encoding/csv"
 	"errors"
 	"fmt"
 	"io"
 	"reflect"
-	"strconv"
-	"strings"
 	"time"
-	"unicode/utf8"
+
+	"github.com/pierrec/go-ini/internal/structs"
 )
 
 var (
@@ -57,59 +55,13 @@ func (ini *INI) Decode(v interface{}) error {
 }
 
 func (ini *INI) decode(defaultSection string, v interface{}) error {
-	// v must be a pointer.
-	ptr := reflect.ValueOf(v)
-	if ptr.Kind() != reflect.Ptr {
-		return errDecodeNoPtr
-	}
-	// v must be a pointer to a struct.
-	val := ptr.Elem()
-	if val.Kind() != reflect.Struct {
-		return errDecodeNoStruct
+	root, err := structs.NewStruct(v, iniTagID)
+	if err != nil {
+		return err
 	}
 
-	// Make sure to convert the value to its interface
-	// otherwise TypeOf will look at the reflect.Value itself!
-	vType := reflect.TypeOf(val.Interface())
-	for i, n := 0, vType.NumField(); i < n; i++ {
-		value := val.Field(i)
-		if !value.CanSet() {
-			// Cannot set the field, maybe unexported.
-			continue
-		}
-		field := vType.Field(i)
-
-		// If the field implements encoding.TextMarshaler, it prevails.
-		valuePtr, isTexter := getUnmarshalTexter(value)
-		if !isTexter {
-			switch field.Type.Kind() {
-			case reflect.Bool,
-				reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-				reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-				reflect.Float32, reflect.Float64,
-				reflect.String, reflect.Slice, reflect.Array, reflect.Map:
-			case reflect.Struct:
-				section, key, _ := getTagInfo(field)
-				if key == "" {
-					// Omit the field.
-					continue
-				}
-				if section == "" && field.Anonymous {
-					// If embedded, use the field name as the default section name.
-					section = field.Name
-				}
-				err := ini.decode(section, valuePtr.Interface())
-				if err != nil {
-					return err
-				}
-				continue
-			default:
-				continue
-			}
-		}
-
-		// Lookup the section and key value.
-		section, key, _ := getTagInfo(field)
+	for _, field := range root.Fields() {
+		section, key, _ := getTagInfo(field.Tag(), field.Name())
 		if key == "" {
 			// Omit the field.
 			continue
@@ -117,6 +69,21 @@ func (ini *INI) decode(defaultSection string, v interface{}) error {
 		if section == "" {
 			section = defaultSection
 		}
+
+		if emb := field.Embedded(); emb != nil {
+			if defaultSection != "" {
+				// Only process the first level of embedded types.
+				continue
+			}
+			if section == "" {
+				section = field.Name()
+			}
+			if err := ini.decode(section, emb); err != nil {
+				return fmt.Errorf("ini: decode: %s.%s: %v", section, key, err)
+			}
+			continue
+		}
+
 		keyValuePtr := ini.get(section, key)
 		if keyValuePtr == nil {
 			// Not found.
@@ -124,151 +91,10 @@ func (ini *INI) decode(defaultSection string, v interface{}) error {
 		}
 
 		// The value was found. Try to convert it to the field type.
-		// Special case: texter.
-		// NB. time.Time implements encoding.TextUnmarshaler.
-		if err := ini.decodeValue(value, valuePtr, isTexter, *keyValuePtr); err != nil {
+		if err := field.Set(*keyValuePtr, ini.sliceSep, ini.mapkeySep); err != nil {
 			return fmt.Errorf("ini: decode: %s.%s: %v", section, key, err)
 		}
 	}
 
 	return nil
-}
-
-// decodeValue sets value to the keyValuePtr value.
-func (ini *INI) decodeValue(value, valuePtr reflect.Value, isTexter bool, keyValue string) error {
-	if isTexter {
-		bts := []byte(keyValue)
-		txtValue := reflect.ValueOf(bts)
-		args := []reflect.Value{txtValue}
-		vals := valuePtr.MethodByName("UnmarshalText").Call(args)
-		if v := vals[0]; !v.IsNil() {
-			return fmt.Errorf("%v", v.Interface())
-		}
-		return nil
-	}
-
-	// Special cases: time.Duration.
-	valueType := value.Type()
-	switch valueType {
-	case durationType:
-		d, err := time.ParseDuration(keyValue)
-		if err != nil {
-			return err
-		}
-		value.SetInt(int64(d))
-		return nil
-	}
-
-	switch valueType.Kind() {
-	case reflect.Bool:
-		v, err := strconv.ParseBool(keyValue)
-		if err != nil {
-			return err
-		}
-		value.SetBool(v)
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		v, err := strconv.ParseInt(keyValue, 0, 64)
-		if err != nil {
-			return err
-		}
-		value.SetInt(v)
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		v, err := strconv.ParseUint(keyValue, 0, 64)
-		if err != nil {
-			return err
-		}
-		value.SetUint(v)
-	case reflect.Float32, reflect.Float64:
-		v, err := strconv.ParseFloat(keyValue, 64)
-		if err != nil {
-			return err
-		}
-		value.SetFloat(v)
-	case reflect.String:
-		value.SetString(keyValue)
-	case reflect.Array:
-		var keyValues []string
-		if keyValue != "" {
-			keyValues = strings.Split(keyValue, ini.sliceSep)
-		}
-		// Take the smallest of the container and the input.
-		n := value.Len()
-		if m := len(keyValues); m < n {
-			n = m
-		}
-		for i := 0; i < n; i++ {
-			v := value.Index(i)
-			err := ini.decodeValue(v, v.Addr(), isTexter, keyValues[i])
-			if err != nil {
-				return err
-			}
-		}
-	case reflect.Slice:
-		keyValues, err := readCSV(keyValue, ini.sliceSep)
-		if err != nil {
-			return err
-		}
-		elem := valueType.Elem()
-		sliceValues := reflect.MakeSlice(valueType, 0, len(keyValues))
-		for i, kv := range keyValues {
-			v := reflect.New(elem).Elem()
-			_, isTexter = getUnmarshalTexter(v)
-			err := ini.decodeValue(v, v.Addr(), isTexter, kv)
-			if err != nil {
-				return fmt.Errorf("%v at index %d", err, i)
-			}
-			sliceValues = reflect.Append(sliceValues, v)
-		}
-		value.Set(sliceValues)
-	case reflect.Map:
-		keyValues, err := readCSV(keyValue, ini.sliceSep)
-		if err != nil {
-			return err
-		}
-		vType := value.Type()
-		keyElem := vType.Key()
-		elemElem := vType.Elem()
-		mapValues := reflect.MakeMap(value.Type())
-		for _, kv := range keyValues {
-			data := strings.SplitN(kv, ini.mapkeySep, 2)
-			if len(data) != 2 {
-				return errInvalidMapKey
-			}
-			key := reflect.New(keyElem).Elem()
-			_, isTexter = getUnmarshalTexter(key)
-			if err := ini.decodeValue(key, key.Addr(), isTexter, data[0]); err != nil {
-				return err
-			}
-			v := reflect.New(elemElem).Elem()
-			_, isTexter = getUnmarshalTexter(v)
-			if err := ini.decodeValue(v, v.Addr(), isTexter, data[1]); err != nil {
-				return err
-			}
-			mapValues.SetMapIndex(key, v)
-		}
-		value.Set(mapValues)
-	}
-	return nil
-}
-
-// getUnmarshalTexter returns the pointer to the Value and whether it
-// implements the TextUnmarshaler interface.
-func getUnmarshalTexter(v reflect.Value) (reflect.Value, bool) {
-	p := v
-	if v.Kind() != reflect.Ptr {
-		p = v.Addr()
-	}
-	return p, p.Type().Implements(textUnmarshalType)
-}
-
-// readCSV converts the csv input string into a slice.
-func readCSV(s string, sep string) ([]string, error) {
-	if s == "" {
-		return nil, nil
-	}
-	buf := strings.NewReader(s)
-	r := csv.NewReader(buf)
-	first, _ := utf8.DecodeRuneInString(sep)
-	r.Comma = first
-	return r.Read()
 }

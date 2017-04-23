@@ -1,6 +1,7 @@
 package ini_test
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -12,8 +13,8 @@ import (
 type Password string
 
 // MarshalText obfuscates the password.
-func (p *Password) MarshalText() ([]byte, error) {
-	buf := []byte(*p)
+func (p Password) MarshalText() ([]byte, error) {
+	buf := []byte(p)
 	rot13(buf)
 	return buf, nil
 }
@@ -73,9 +74,11 @@ func Example() {
 	}
 
 	// Encode the configuration.
-	ini.Encode(os.Stdout, conf)
+	if err := ini.Encode(os.Stdout, conf); err != nil {
+		fmt.Println(err)
+	}
 
-	// Output: deadline = 0000-01-01T05:01:01Z
+	// Output: deadline = 0000-01-01 05:01:01 +0000 UTC
 	//
 	// [server]
 	// host    = localhost

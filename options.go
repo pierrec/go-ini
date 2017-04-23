@@ -51,7 +51,7 @@ func MergeSectionsWithLastComments() Option {
 
 // SliceSeparator defines the separator used to split strings when
 // decoding into a slice/map or encoding a slice/map into a key value.
-func SliceSeparator(sep string) Option {
+func SliceSeparator(sep rune) Option {
 	return func(ini *INI) error {
 		ini.sliceSep = sep
 		return nil
@@ -60,7 +60,7 @@ func SliceSeparator(sep string) Option {
 
 // MapKeySeparator defines the separator used to split strings when
 // decoding or encoding a map key.
-func MapKeySeparator(sep string) Option {
+func MapKeySeparator(sep rune) Option {
 	return func(ini *INI) error {
 		ini.mapkeySep = sep
 		return nil

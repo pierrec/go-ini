@@ -2,6 +2,7 @@ package ini_test
 
 import (
 	"bytes"
+	"encoding"
 	"errors"
 	"fmt"
 	"io"
@@ -372,7 +373,7 @@ str = abc
 [sec2]
 flag = true
 dur  = 1s
-date = 2013-02-03T00:00:00Z
+date = 2013-02-03 00:00:00 +0000 UTC
 
 [sec3]
 hash = 50419
@@ -387,22 +388,23 @@ func TestDecode(t *testing.T) {
 	type config struct {
 		dummy int
 		io.Reader
-		Skip1 int           `ini:"-"`
-		Skip2 int           `ini:"-,sec"`
-		A     int           `ini:"idx,sec1"`
-		B     string        `ini:"str,sec1"`
-		B1    string        `ini:"str2,sec1"`
-		B2    string        `ini:"str3,sec1"`
-		B3    string        `ini:"str4,sec1"`
-		C     bool          `ini:"flag,sec2"`
-		D     time.Duration `ini:"dur,sec2"`
-		E     time.Time     `ini:"date,sec2"`
-		F     uint32        `ini:"hash,sec3"`
-		G     float64       `ini:"v,sec3"`
-		S     []int         `ini:"lst,sec3"`
-		SS    []string      `ini:"slst,sec3"`
-		ARR   [2]int        `ini:"a1,arr"`
-		ARR2  [3]string     `ini:"a2,arr"`
+		Skip1 int            `ini:"-"`
+		Skip2 int            `ini:"-,sec"`
+		A     int            `ini:"idx,sec1"`
+		B     string         `ini:"str,sec1"`
+		B1    string         `ini:"str2,sec1"`
+		B2    string         `ini:"str3,sec1"`
+		B3    string         `ini:"str4,sec1"`
+		C     bool           `ini:"flag,sec2"`
+		D     time.Duration  `ini:"dur,sec2"`
+		E     time.Time      `ini:"date,sec2"`
+		F     uint32         `ini:"hash,sec3"`
+		G     float64        `ini:"v,sec3"`
+		S     []int          `ini:"lst,sec3"`
+		SS    []string       `ini:"slst,sec3"`
+		ARR   [2]int         `ini:"a1,arr"`
+		ARR2  [3]string      `ini:"a2,arr"`
+		M     map[int]string `ini:"m1,map"`
 	}
 
 	data := `
@@ -424,6 +426,8 @@ slst=a,b,c
 [arr]
 a1=1,2
 a2=x,y
+[map]
+m1=1:x,2:y
 `
 
 	for _, ending := range []string{"\n", "\r\n"} {
@@ -438,7 +442,10 @@ a2=x,y
 		date, _ := time.Parse(time.RFC3339, "2006-01-02T15:04:05Z")
 		got, want := conf, config{0, nil, 0, 0, 123, "a\"b\"c", "a\"bc", "",
 			"abc", true, time.Second, date, 0xC4F3, 1.234,
-			[]int{1, 2, 3}, []string{"a", "b", "c"}, [2]int{1, 2}, [3]string{"x", "y", ""}}
+			[]int{1, 2, 3}, []string{"a", "b", "c"}, [2]int{1, 2},
+			[3]string{"x", "y", ""},
+			map[int]string{1: "x", 2: "y"},
+		}
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("got %v; want %v", got, want)
 		}
@@ -515,17 +522,22 @@ k3 = v2.3
 	}
 }
 
+var (
+	_ encoding.TextMarshaler   = (*password)(nil)
+	_ encoding.TextUnmarshaler = (*password)(nil)
+)
+
 type Tuser struct {
 	P password `ini:"pwd"`
 }
 
 type password string
 
-func (p *password) MarshalText() ([]byte, error) {
-	if *p == "doerror" {
+func (p password) MarshalText() ([]byte, error) {
+	if p == "doerror" {
 		return nil, errors.New("fake error")
 	}
-	s := fmt.Sprintf("__%s__", *p)
+	s := fmt.Sprintf("__%s__", p)
 	return []byte(s), nil
 }
 
@@ -542,7 +554,7 @@ func TestTexter(t *testing.T) {
 	// The MarshalText interface should be applied.
 	// Even to embedded structs.
 	type config struct {
-		U Tuser
+		Tuser
 	}
 
 	conf := config{Tuser{"secret"}}
@@ -553,30 +565,31 @@ func TestTexter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	want := `pwd = __secret__
+	want := `[Tuser]
+pwd = __secret__
 `
 	if got := string(buf.Bytes()); got != want {
 		t.Fatalf("got '%v'; want '%v'", got, want)
 	}
 
 	// The password should be decoded using UnmarshalText.
-	conf.U.P = ""
+	conf.P = ""
 	if err := ini.Decode(buf, &conf); err != nil {
 		t.Fatal(err)
 	}
 
-	if got, want := string(conf.U.P), "secret"; got != want {
+	if got, want := string(conf.P), "secret"; got != want {
 		t.Fatalf("got '%v'; want '%v'", got, want)
 	}
 
 	// Texter error: the encoded password is invalid.
 	buf.Reset()
-	buf.WriteString("pwd = secret")
+	buf.WriteString("[Tuser]\npwd = secret")
 	if err := ini.Decode(buf, &conf); err == nil {
 		t.Fatal("expected error")
 	}
 
-	conf.U.P = "doerror"
+	conf.P = "doerror"
 	if err := ini.Encode(buf, &conf); err == nil {
 		t.Fatal("expected error")
 	}
@@ -741,11 +754,12 @@ k2   = v1.2
 
 func TestDefaultOptions(t *testing.T) {
 	type config struct {
-		AS int   `ini:"a,S"`
-		BS int   `ini:"b,S"`
-		As int   `ini:"A,s"`
-		Bs int   `ini:"B,s"`
-		S  []int `ini:"lst"`
+		AS int            `ini:"a,S"`
+		BS int            `ini:"b,S"`
+		As int            `ini:"A,s"`
+		Bs int            `ini:"B,s"`
+		S  []int          `ini:"lst"`
+		M  map[int]string `ini:",map"`
 	}
 
 	data := `lst = 1_2_3
@@ -765,6 +779,9 @@ b = 2
 
 [s]
 A = 1
+
+[map]
+M = 1.x_2.y
 `
 
 	want := `lst = 1_2_3
@@ -776,6 +793,9 @@ b = 2
 [s]
 A = 1
 B = 2
+
+[map]
+M = 1.x_2.y
 `
 
 	var conf config
@@ -784,7 +804,8 @@ B = 2
 		ini.CaseSensitive(),
 		ini.Comment("#"),
 		ini.MergeSections(),
-		ini.SliceSeparator("_"),
+		ini.SliceSeparator('_'),
+		ini.MapKeySeparator('.'),
 	}
 	defer func() { ini.DefaultOptions = nil }()
 
