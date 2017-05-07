@@ -176,6 +176,10 @@ func (ini *INI) addItemsToSection(items []*iniItem, section *iniSection) {
 		return
 	}
 
+	if section == nil {
+		section = &iniSection{}
+	}
+
 	// Keys and values.
 	section.Data = dedupItems(section.Data, items, ini.isCaseSensitive)
 	// Blank line.
